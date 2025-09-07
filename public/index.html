@@ -625,26 +625,61 @@
         
         // Mise à jour automatique
         async function updateAll() {
-            await fetchPriceData();
-            await calculateTrading();
+            console.log(`\n🔄 [FRONT] ========== MISE À JOUR GLOBALE ==========`);
+            console.log(`🔄 [FRONT] Début de la mise à jour pour ${currentSymbol}`);
             
-            const now = new Date();
-            document.getElementById('lastUpdate').textContent = 
-                `Dernière mise à jour: ${now.toLocaleTimeString()}`;
+            const startTime = Date.now();
+            
+            try {
+                // Récupération des données de prix
+                const priceData = await fetchPriceData();
+                if (!priceData) {
+                    console.log(`❌ [FRONT] Échec de récupération des données`);
+                    return;
+                }
+                
+                // Calcul des paramètres de trading
+                await calculateTrading();
+                
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+                
+                // Mise à jour du timestamp
+                const now = new Date();
+                document.getElementById('lastUpdate').textContent = 
+                    `Dernière mise à jour: ${now.toLocaleTimeString()} (${duration}ms)`;
+                
+                console.log(`✅ [FRONT] Mise à jour terminée en ${duration}ms`);
+                console.log(`🔄 [FRONT] =======================================\n`);
+                
+            } catch (error) {
+                console.error('❌ [FRONT] Erreur lors de la mise à jour globale:', error);
+                
+                // Affichage d'erreur dans l'interface
+                document.getElementById('lastUpdate').textContent = 
+                    `Erreur lors de la mise à jour: ${new Date().toLocaleTimeString()}`;
+                document.getElementById('connectionStatus').innerHTML = '🔴 Erreur système';
+                document.getElementById('connectionStatus').style.background = '#e74c3c';
+            }
         }
         
         // Changement d'instrument
         document.getElementById('symbolSelect').addEventListener('change', function() {
+            const oldSymbol = currentSymbol;
             currentSymbol = this.value;
+            console.log(`🔄 [FRONT] Changement d'instrument: ${oldSymbol} → ${currentSymbol}`);
             updateAll();
         });
         
-        // Mise à jour automatique des paramètres
+        // Mise à jour automatique des paramètres avec debounce
         ['balance', 'riskPercent', 'stopLoss', 'riskReward', 'horizon'].forEach(id => {
             document.getElementById(id).addEventListener('input', function() {
+                console.log(`⚙️ [FRONT] Paramètre modifié: ${id} = ${this.value}`);
+                
                 // Débounce pour éviter trop d'appels
                 clearTimeout(this.timeout);
                 this.timeout = setTimeout(() => {
+                    console.log(`🔄 [FRONT] Recalcul automatique déclenché par ${id}`);
                     calculateTrading();
                 }, 500);
             });
@@ -652,11 +687,23 @@
         
         // Initialisation
         document.addEventListener('DOMContentLoaded', function() {
+            console.log(`🚀 [FRONT] ========== INITIALISATION ==========`);
+            console.log(`🚀 [FRONT] DOM chargé, démarrage de l'application`);
+            
             initChart();
+            console.log(`📊 [FRONT] Graphique initialisé`);
+            
             updateAll();
+            console.log(`🔄 [FRONT] Première mise à jour lancée`);
             
             // Mise à jour automatique toutes les 30 secondes
-            updateInterval = setInterval(updateAll, 30000);
+            updateInterval = setInterval(() => {
+                console.log(`⏰ [FRONT] Mise à jour automatique programmée`);
+                updateAll();
+            }, 30000);
+            
+            console.log(`⏰ [FRONT] Timer de mise à jour configuré (30s)`);
+            console.log(`🚀 [FRONT] ========================================`);
         });
         
         // Nettoyage à la fermeture
