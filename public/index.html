@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analyseur Trading Live - Données Réelles</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <title>📈 Analyseur de Trading Live - Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -15,9 +15,10 @@
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #333;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
             min-height: 100vh;
+            overflow-x: auto;
         }
         
         .container {
@@ -29,50 +30,95 @@
         .header {
             text-align: center;
             margin-bottom: 30px;
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255,255,255,0.1);
             padding: 20px;
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
         }
         
         .header h1 {
-            color: #2c3e50;
             font-size: 2.5em;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         
-        .status {
-            display: inline-block;
-            padding: 8px 20px;
-            background: #27ae60;
-            color: white;
-            border-radius: 25px;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-        
-        .main-grid {
+        .trading-dashboard {
             display: grid;
             grid-template-columns: 1fr 400px;
             gap: 20px;
             margin-bottom: 20px;
         }
         
-        .chart-container {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 25px;
+        .chart-section {
+            background: rgba(255,255,255,0.1);
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            min-height: 500px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
         }
         
-        .controls {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 25px;
+        .controls-section {
+            background: rgba(255,255,255,0.1);
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 20px;
+            backdrop-filter: blur(10px);
         }
+        
+        .symbol-selector {
+            margin-bottom: 20px;
+        }
+        
+        .symbol-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .symbol-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        .symbol-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        
+        .symbol-btn.active {
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: #000;
+        }
+        
+        .price-display {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+        }
+        
+        .current-price {
+            font-size: 2em;
+            font-weight: bold;
+            color: #00ff88;
+        }
+        
+        .price-change {
+            font-size: 1.2em;
+            margin-top: 5px;
+        }
+        
+        .price-change.positive { color: #00ff88; }
+        .price-change.negative { color: #ff4444; }
         
         .form-group {
             margin-bottom: 20px;
@@ -80,408 +126,430 @@
         
         .form-group label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             font-weight: bold;
-            color: #2c3e50;
+            color: #FFD700;
         }
         
-        .form-group select,
-        .form-group input {
+        .form-group input, .form-group select {
             width: 100%;
             padding: 12px;
-            border: 2px solid #bdc3c7;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-        
-        .form-group select:focus,
-        .form-group input:focus {
-            outline: none;
-            border-color: #3498db;
-        }
-        
-        .btn {
-            width: 100%;
-            padding: 15px;
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            color: white;
             border: none;
             border-radius: 8px;
+            background: rgba(255,255,255,0.2);
+            color: white;
             font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
         }
         
-        .btn:hover {
+        .form-group input::placeholder {
+            color: rgba(255,255,255,0.6);
+        }
+        
+        .calc-btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+        
+        .calc-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 5px 15px rgba(0,255,136,0.4);
+        }
+        
+        .results-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            margin-top: 20px;
         }
         
         .results-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: 1fr 1fr;
             gap: 20px;
         }
         
         .result-card {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
         }
         
-        .result-card h3 {
-            color: #2c3e50;
-            margin-bottom: 15px;
+        .result-title {
+            color: #FFD700;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        .result-value {
             font-size: 1.4em;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
+            font-weight: bold;
+            color: #00ff88;
         }
         
-        .metric {
+        .analysis-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+        }
+        
+        .indicator-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 12px;
-            padding: 8px 0;
-            border-bottom: 1px solid #ecf0f1;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
         }
         
-        .metric:last-child {
-            border-bottom: none;
+        .signal-lights {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
         }
         
-        .metric-label {
+        .signal-light {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-weight: bold;
-            color: #34495e;
-        }
-        
-        .metric-value {
-            color: #2c3e50;
-            font-weight: bold;
-        }
-        
-        .positive {
-            color: #27ae60 !important;
-        }
-        
-        .negative {
-            color: #e74c3c !important;
-        }
-        
-        .neutral {
-            color: #f39c12 !important;
-        }
-        
-        .last-update {
+            font-size: 12px;
             text-align: center;
+        }
+        
+        .signal-buy {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: white;
+        }
+        
+        .signal-sell {
+            background: linear-gradient(45deg, #ff4444, #cc0000);
+            color: white;
+        }
+        
+        .signal-neutral {
+            background: linear-gradient(45deg, #888, #666);
+            color: white;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 500px;
             margin-top: 20px;
-            color: #7f8c8d;
-            font-style: italic;
+        }
+        
+        .status-bar {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+        }
+        
+        .status-online {
+            color: #00ff88;
+        }
+        
+        .status-offline {
+            color: #ff4444;
         }
         
         .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #3498db;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            opacity: 0.8;
         }
         
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .fibonacci-levels {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
         }
         
-        .chart-header {
+        .fib-level {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .chart-title {
-            font-size: 1.5em;
-            color: #2c3e50;
-            font-weight: bold;
-        }
-        
-        .price-display {
-            font-size: 1.8em;
-            font-weight: bold;
-            color: #27ae60;
-        }
-        
-        @media (max-width: 1200px) {
-            .main-grid {
-                grid-template-columns: 1fr;
-            }
+            margin-bottom: 5px;
+            font-size: 0.9em;
         }
         
         @media (max-width: 768px) {
+            .trading-dashboard {
+                grid-template-columns: 1fr;
+            }
+            
             .results-grid {
                 grid-template-columns: 1fr;
             }
             
-            .header h1 {
-                font-size: 2em;
+            .symbol-buttons {
+                flex-direction: column;
             }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>📊 Analyseur Trading Live</h1>
-            <p>Données réelles • Calculs automatiques • Prédictions AI</p>
-            <div class="status" id="connectionStatus">
-                <span class="loading"></span>Connexion en cours...
-            </div>
+            <h1>📈 Analyseur de Trading Live</h1>
+            <p>Analyse technique en temps réel avec données de marché authentiques</p>
         </div>
         
-        <div class="main-grid">
-            <div class="chart-container">
-                <div class="chart-header">
-                    <div class="chart-title" id="chartTitle">EUR/USD</div>
-                    <div class="price-display" id="currentPrice">--</div>
+        <div class="trading-dashboard">
+            <div class="chart-section">
+                <div class="symbol-buttons">
+                    <button class="symbol-btn active" onclick="selectSymbol('EUR-USD')">EUR/USD</button>
+                    <button class="symbol-btn" onclick="selectSymbol('XAU-USD')">XAU/USD</button>
+                    <button class="symbol-btn" onclick="selectSymbol('BTC-USD')">BTC/USD</button>
                 </div>
-                <canvas id="priceChart" width="800" height="400"></canvas>
+                
+                <div class="price-display">
+                    <div class="current-price" id="currentPrice">Loading...</div>
+                    <div class="price-change" id="priceChange">--</div>
+                    <div style="font-size: 0.8em; margin-top: 5px;" id="lastUpdate">--</div>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="priceChart"></canvas>
+                </div>
             </div>
             
-            <div class="controls">
+            <div class="controls-section">
                 <h3>⚙️ Paramètres de Trading</h3>
                 
                 <div class="form-group">
-                    <label for="symbolSelect">Instrument:</label>
-                    <select id="symbolSelect">
-                        <option value="EURUSD">EUR/USD (Forex)</option>
-                        <option value="XAUUSD">XAU/USD (Gold)</option>
-                        <option value="BTCUSD">BTC/USD (Bitcoin)</option>
-                    </select>
+                    <label for="balance">Balance du compte ($)</label>
+                    <input type="number" id="balance" value="10000" placeholder="10000">
                 </div>
                 
                 <div class="form-group">
-                    <label for="balance">Balance ($):</label>
-                    <input type="number" id="balance" value="10000" min="100" step="100">
+                    <label for="riskPercent">Risque par trade (%)</label>
+                    <input type="number" id="riskPercent" value="2" step="0.1" placeholder="2.0">
                 </div>
                 
                 <div class="form-group">
-                    <label for="riskPercent">Risque (%):</label>
-                    <input type="number" id="riskPercent" value="2" min="0.1" max="10" step="0.1">
+                    <label for="stopLossPips">Stop Loss (pips)</label>
+                    <input type="number" id="stopLossPips" value="20" placeholder="20">
                 </div>
                 
                 <div class="form-group">
-                    <label for="stopLoss">Stop Loss (pips):</label>
-                    <input type="number" id="stopLoss" value="50" min="5" step="5">
+                    <label for="takeProfitRatio">Ratio Take Profit</label>
+                    <input type="number" id="takeProfitRatio" value="2" step="0.1" placeholder="2.0">
                 </div>
                 
                 <div class="form-group">
-                    <label for="riskReward">Ratio R:R:</label>
-                    <input type="number" id="riskReward" value="2" min="1" max="5" step="0.1">
+                    <label for="timeHorizon">Horizon temporel (jours)</label>
+                    <input type="number" id="timeHorizon" value="7" placeholder="7">
                 </div>
                 
-                <div class="form-group">
-                    <label for="horizon">Horizon (jours):</label>
-                    <input type="number" id="horizon" value="7" min="1" max="30" step="1">
-                </div>
-                
-                <button class="btn" onclick="recalculate()">
-                    🔄 Recalculer
+                <button class="calc-btn" onclick="calculatePositioning()">
+                    🔄 Recalculer en Direct
                 </button>
-            </div>
-        </div>
-        
-        <div class="results-grid">
-            <div class="result-card">
-                <h3>📈 Analyse Technique</h3>
-                <div id="technicalAnalysis">
-                    <div class="metric">
-                        <span class="metric-label">Prix actuel:</span>
-                        <span class="metric-value" id="techCurrentPrice">--</span>
+                
+                <div class="signal-lights">
+                    <div class="signal-light signal-neutral" id="buySignal">
+                        NEUTRE
                     </div>
-                    <div class="metric">
-                        <span class="metric-label">ATR:</span>
-                        <span class="metric-value" id="atr">--</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">SMA 20:</span>
-                        <span class="metric-value" id="sma20">--</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">SMA 50:</span>
-                        <span class="metric-value" id="sma50">--</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">RSI:</span>
-                        <span class="metric-value" id="rsi">--</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">Tendance:</span>
-                        <span class="metric-value" id="trend">--</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="result-card">
-                <h3>💰 Gestion du Risque</h3>
-                <div id="riskManagement">
-                    <div class="metric">
-                        <span class="metric-label">Stop Loss:</span>
-                        <span class="metric-value negative" id="slPrice">--</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">Take Profit:</span>
-                        <span class="metric-value positive" id="tpPrice">--</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">Taille Position:</span>
-                        <span class="metric-value" id="positionSize">--</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">Lots:</span>
-                        <span class="metric-value" id="lots">--</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">Risque ($):</span>
-                        <span class="metric-value negative" id="riskAmount">--</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">Ratio R:R réel:</span>
-                        <span class="metric-value" id="actualRR">--</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="result-card">
-                <h3>📊 Profit/Perte Potentiel</h3>
-                <div id="profitLoss">
-                    <div class="metric">
-                        <span class="metric-label">Profit Potentiel:</span>
-                        <span class="metric-value positive" id="potentialProfit">--</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">Perte Potentielle:</span>
-                        <span class="metric-value negative" id="potentialLoss">--</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">ROI Potentiel:</span>
-                        <span class="metric-value" id="roi">--</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="result-card">
-                <h3>🔮 Prédictions IA</h3>
-                <div id="predictions">
-                    <div class="metric">
-                        <span class="metric-label">Scénario Neutre:</span>
-                        <span class="metric-value neutral" id="predNeutral">--</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">Scénario Haussier:</span>
-                        <span class="metric-value positive" id="predBullish">--</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">Scénario Baissier:</span>
-                        <span class="metric-value negative" id="predBearish">--</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">Probabilité:</span>
-                        <span class="metric-value" id="probability">--</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">Horizon:</span>
-                        <span class="metric-value" id="predHorizon">--</span>
+                    <div class="signal-light signal-neutral" id="sellSignal">
+                        NEUTRE
                     </div>
                 </div>
             </div>
         </div>
         
-        <div class="last-update" id="lastUpdate">
-            Dernière mise à jour: --
+        <div class="results-section">
+            <h3>📊 Résultats de l'Analyse</h3>
+            <div class="results-grid">
+                <div class="result-card">
+                    <div class="result-title">Taille de Position</div>
+                    <div class="result-value" id="positionSize">--</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-title">Montant Risqué</div>
+                    <div class="result-value" id="riskAmount">--</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-title">Stop Loss</div>
+                    <div class="result-value" id="stopLossLevel">--</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-title">Take Profit</div>
+                    <div class="result-value" id="takeProfitLevel">--</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-title">Prix Prédit</div>
+                    <div class="result-value" id="predictedPrice">--</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-title">Probabilité de Succès</div>
+                    <div class="result-value" id="successProb">--</div>
+                </div>
+            </div>
+            
+            <div class="analysis-section">
+                <h4>🔍 Indicateurs Techniques</h4>
+                <div class="indicator-row">
+                    <span>ATR (Volatilité):</span>
+                    <span id="atrValue">--</span>
+                </div>
+                <div class="indicator-row">
+                    <span>RSI:</span>
+                    <span id="rsiValue">--</span>
+                </div>
+                <div class="indicator-row">
+                    <span>Volatilité Annuelle:</span>
+                    <span id="volatilityValue">--</span>
+                </div>
+                <div class="indicator-row">
+                    <span>Force de Tendance:</span>
+                    <span id="trendStrength">--</span>
+                </div>
+                <div class="indicator-row">
+                    <span>MACD:</span>
+                    <span id="macdValue">--</span>
+                </div>
+                
+                <div class="fibonacci-levels">
+                    <h5>📈 Niveaux de Fibonacci</h5>
+                    <div id="fibonacciLevels">
+                        <div class="fib-level">
+                            <span>0% (Résistance):</span>
+                            <span id="fib0">--</span>
+                        </div>
+                        <div class="fib-level">
+                            <span>23.6%:</span>
+                            <span id="fib236">--</span>
+                        </div>
+                        <div class="fib-level">
+                            <span>38.2%:</span>
+                            <span id="fib382">--</span>
+                        </div>
+                        <div class="fib-level">
+                            <span>50%:</span>
+                            <span id="fib50">--</span>
+                        </div>
+                        <div class="fib-level">
+                            <span>61.8%:</span>
+                            <span id="fib618">--</span>
+                        </div>
+                        <div class="fib-level">
+                            <span>100% (Support):</span>
+                            <span id="fib100">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+    </div>
+    
+    <div class="status-bar">
+        <span id="connectionStatus" class="status-online">🟢 Connecté - Données Live</span>
     </div>
     
     <script>
         // Variables globales
-        let chart;
-        let currentSymbol = 'EURUSD';
-        let updateInterval;
-        let lastUpdateTime = 0;
+        let currentSymbol = 'EUR-USD';
+        let priceChart = null;
+        let updateInterval = null;
+        let lastPrice = 0;
+        let chartData = [];
         
         // Configuration du graphique
-        function initChart() {
+        function initializeChart() {
             const ctx = document.getElementById('priceChart').getContext('2d');
-            chart = new Chart(ctx, {
+            
+            priceChart = new Chart(ctx, {
                 type: 'line',
                 data: {
+                    labels: [],
                     datasets: [{
-                        label: 'Prix de clôture',
+                        label: 'Prix',
                         data: [],
-                        borderColor: '#3498db',
-                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderColor: '#00ff88',
+                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
                         borderWidth: 2,
                         fill: true,
                         tension: 0.1
                     }, {
-                        label: 'SMA 20',
+                        label: 'Bollinger Supérieure',
                         data: [],
-                        borderColor: '#e74c3c',
+                        borderColor: '#FFD700',
+                        backgroundColor: 'transparent',
                         borderWidth: 1,
-                        fill: false,
+                        borderDash: [5, 5],
                         pointRadius: 0
                     }, {
-                        label: 'SMA 50',
+                        label: 'Bollinger Inférieure',
                         data: [],
-                        borderColor: '#f39c12',
+                        borderColor: '#FFD700',
+                        backgroundColor: 'transparent',
                         borderWidth: 1,
-                        fill: false,
+                        borderDash: [5, 5],
                         pointRadius: 0
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#fff'
+                            }
+                        }
                     },
                     scales: {
                         x: {
                             type: 'time',
                             time: {
+                                unit: 'minute',
                                 displayFormats: {
-                                    minute: 'HH:mm',
-                                    hour: 'HH:mm'
+                                    minute: 'HH:mm'
                                 }
                             },
-                            title: {
-                                display: true,
-                                text: 'Temps'
+                            ticks: {
+                                color: '#fff'
+                            },
+                            grid: {
+                                color: 'rgba(255,255,255,0.1)'
                             }
                         },
                         y: {
-                            title: {
-                                display: true,
-                                text: 'Prix'
+                            ticks: {
+                                color: '#fff'
                             },
-                            position: 'right'
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(currentSymbol === 'BTCUSD' ? 0 : 5);
-                                }
+                            grid: {
+                                color: 'rgba(255,255,255,0.1)'
                             }
                         }
                     }
@@ -489,228 +557,246 @@
             });
         }
         
-        // Mise à jour du graphique
-        function updateChart(priceData) {
-            if (!chart) return;
+        // Sélection de symbole
+        function selectSymbol(symbol) {
+            currentSymbol = symbol;
             
-            const prices = priceData.prices.map(p => ({
-                x: new Date(p.timestamp),
-                y: p.close
-            }));
+            // Mise à jour de l'interface
+            document.querySelectorAll('.symbol-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
             
-            chart.data.datasets[0].data = prices;
-            
-            // Ajouter les moyennes mobiles si disponibles
-            if (priceData.sma20 && priceData.sma50) {
-                const lastTime = new Date(priceData.prices[priceData.prices.length - 1].timestamp);
-                chart.data.datasets[1].data = [{x: lastTime, y: priceData.sma20}];
-                chart.data.datasets[2].data = [{x: lastTime, y: priceData.sma50}];
+            // Réinitialisation des données
+            chartData = [];
+            if (priceChart) {
+                priceChart.data.labels = [];
+                priceChart.data.datasets[0].data = [];
+                priceChart.data.datasets[1].data = [];
+                priceChart.data.datasets[2].data = [];
+                priceChart.update();
             }
             
-            chart.update('none');
+            // Chargement immédiat des nouvelles données
+            updatePriceData();
         }
         
-        // Récupération des données de prix
-        async function fetchPriceData() {
+        // Mise à jour des données de prix
+        async function updatePriceData() {
             try {
                 const response = await fetch(`/api/prices/${currentSymbol}`);
-                if (!response.ok) throw new Error('Erreur réseau');
-                
                 const data = await response.json();
                 
-                // Mise à jour du graphique
-                updateChart(data);
-                
-                // Mise à jour des informations techniques
-                document.getElementById('currentPrice').textContent = formatPrice(data.currentPrice);
-                document.getElementById('chartTitle').textContent = formatSymbolName(currentSymbol);
-                document.getElementById('techCurrentPrice').textContent = formatPrice(data.currentPrice);
-                document.getElementById('atr').textContent = formatPrice(data.atr);
-                document.getElementById('sma20').textContent = formatPrice(data.sma20);
-                document.getElementById('sma50').textContent = formatPrice(data.sma50);
-                document.getElementById('rsi').textContent = data.rsi.toFixed(1);
-                
-                // Couleur de la tendance
-                const trendElement = document.getElementById('trend');
-                trendElement.textContent = data.trend;
-                trendElement.className = 'metric-value ' + (data.trend === 'Bullish' ? 'positive' : 'negative');
-                
-                // Mise à jour du statut
-                document.getElementById('connectionStatus').innerHTML = '🟢 Données en temps réel';
-                document.getElementById('connectionStatus').style.background = '#27ae60';
-                
-                lastUpdateTime = Date.now();
-                
-                return data;
+                if (data.currentPrice) {
+                    // Mise à jour du prix affiché
+                    const priceElement = document.getElementById('currentPrice');
+                    const changeElement = document.getElementById('priceChange');
+                    const updateElement = document.getElementById('lastUpdate');
+                    
+                    const currentPrice = data.currentPrice;
+                    const change = currentPrice - lastPrice;
+                    const changePercent = lastPrice > 0 ? ((change / lastPrice) * 100) : 0;
+                    
+                    priceElement.textContent = formatPrice(currentPrice, currentSymbol);
+                    
+                    if (change !== 0) {
+                        const changeText = `${change >= 0 ? '+' : ''}${formatPrice(change, currentSymbol)} (${changePercent.toFixed(2)}%)`;
+                        changeElement.textContent = changeText;
+                        changeElement.className = `price-change ${change >= 0 ? 'positive' : 'negative'}`;
+                        
+                        // Animation de pulsation pour les changements
+                        priceElement.classList.add('pulse');
+                        setTimeout(() => priceElement.classList.remove('pulse'), 1000);
+                    }
+                    
+                    updateElement.textContent = `Mis à jour: ${new Date().toLocaleTimeString()}`;
+                    lastPrice = currentPrice;
+                    
+                    // Mise à jour du graphique
+                    if (data.history && data.history.length > 0) {
+                        updateChart(data.history, currentPrice);
+                    }
+                    
+                    // Calcul automatique
+                    await calculatePositioning();
+                    
+                    // Statut de connexion
+                    document.getElementById('connectionStatus').innerHTML = '🟢 Connecté - Données Live';
+                    document.getElementById('connectionStatus').className = 'status-online';
+                }
             } catch (error) {
                 console.error('Erreur lors de la récupération des données:', error);
                 document.getElementById('connectionStatus').innerHTML = '🔴 Erreur de connexion';
-                document.getElementById('connectionStatus').style.background = '#e74c3c';
-                return null;
+                document.getElementById('connectionStatus').className = 'status-offline';
             }
         }
         
-        // Calculs de trading
-        async function calculateTrading() {
-            const params = {
-                symbol: currentSymbol,
-                balance: parseFloat(document.getElementById('balance').value),
-                riskPercent: parseFloat(document.getElementById('riskPercent').value),
-                stopLossPips: parseFloat(document.getElementById('stopLoss').value),
-                horizonDays: parseInt(document.getElementById('horizon').value),
-                riskRewardRatio: parseFloat(document.getElementById('riskReward').value)
-            };
+        // Mise à jour du graphique
+        function updateChart(history, currentPrice) {
+            if (!priceChart) return;
             
+            const labels = history.map(h => new Date(h.time));
+            const prices = history.map(h => h.close);
+            
+            priceChart.data.labels = labels;
+            priceChart.data.datasets[0].data = prices;
+            
+            // Ajout du point actuel si différent du dernier point d'historique
+            if (history.length > 0) {
+                const lastHistoryPrice = history[history.length - 1].close;
+                if (Math.abs(currentPrice - lastHistoryPrice) > 0.00001) {
+                    priceChart.data.labels.push(new Date());
+                    priceChart.data.datasets[0].data.push(currentPrice);
+                }
+            }
+            
+            priceChart.update('none'); // Animation désactivée pour de meilleures performances
+        }
+        
+        // Formatage des prix selon le symbole
+        function formatPrice(price, symbol) {
+            if (symbol === 'BTC-USD') {
+                return `${price.toFixed(0)}`;
+            } else if (symbol === 'XAU-USD') {
+                return `${price.toFixed(2)}`;
+            } else {
+                return price.toFixed(5);
+            }
+        }
+        
+        // Calcul du positionnement et analyse
+        async function calculatePositioning() {
             try {
+                const balance = parseFloat(document.getElementById('balance').value) || 10000;
+                const riskPercent = parseFloat(document.getElementById('riskPercent').value) || 2;
+                const stopLossPips = parseFloat(document.getElementById('stopLossPips').value) || 20;
+                const takeProfitRatio = parseFloat(document.getElementById('takeProfitRatio').value) || 2;
+                const timeHorizon = parseFloat(document.getElementById('timeHorizon').value) || 7;
+                
+                const requestData = {
+                    symbol: currentSymbol,
+                    balance,
+                    riskPercent,
+                    stopLossPips,
+                    takeProfitRatio,
+                    timeHorizon,
+                    currentPrice: lastPrice
+                };
+                
                 const response = await fetch('/api/calc', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(params)
+                    body: JSON.stringify(requestData)
                 });
                 
-                if (!response.ok) throw new Error('Erreur de calcul');
+                const result = await response.json();
                 
-                const data = await response.json();
-                
-                // Mise à jour de la gestion du risque
-                document.getElementById('slPrice').textContent = formatPrice(data.stopLossPrice);
-                document.getElementById('tpPrice').textContent = formatPrice(data.takeProfitPrice);
-                document.getElementById('positionSize').textContent = data.positionSize.toLocaleString();
-                document.getElementById('lots').textContent = data.lots;
-                document.getElementById('riskAmount').textContent = ' + data.riskAmount;
-                document.getElementById('actualRR').textContent = data.riskRewardRatio;
-                
-                // Mise à jour des profits/pertes
-                document.getElementById('potentialProfit').textContent = ' + data.potentialProfit;
-                document.getElementById('potentialLoss').textContent = ' + data.potentialLoss;
-                
-                const roi = (parseFloat(data.potentialProfit) / params.balance * 100).toFixed(2);
-                document.getElementById('roi').textContent = roi + '%';
-                
-                // Mise à jour des prédictions
-                document.getElementById('predNeutral').textContent = formatPrice(data.predictions.neutral);
-                document.getElementById('predBullish').textContent = formatPrice(data.predictions.bullish);
-                document.getElementById('predBearish').textContent = formatPrice(data.predictions.bearish);
-                document.getElementById('probability').textContent = data.predictions.probability + '%';
-                document.getElementById('predHorizon').textContent = data.predictions.horizon + ' jours';
+                if (result.position) {
+                    // Mise à jour des résultats
+                    document.getElementById('positionSize').textContent = result.position.size.toFixed(2);
+                    document.getElementById('riskAmount').textContent = `${result.position.riskAmount.toFixed(2)}`;
+                    document.getElementById('stopLossLevel').textContent = formatPrice(result.position.stopLoss, currentSymbol);
+                    document.getElementById('takeProfitLevel').textContent = formatPrice(result.position.takeProfit, currentSymbol);
+                    document.getElementById('predictedPrice').textContent = formatPrice(result.prediction.targetPrice, currentSymbol);
+                    document.getElementById('successProb').textContent = `${result.prediction.successProbability}%`;
+                    
+                    // Mise à jour des indicateurs techniques
+                    document.getElementById('atrValue').textContent = result.analysis.atr;
+                    document.getElementById('rsiValue').textContent = `${result.analysis.rsi} ${getRSISignal(result.analysis.rsi)}`;
+                    document.getElementById('volatilityValue').textContent = `${result.analysis.volatility}%`;
+                    document.getElementById('trendStrength').textContent = `${(result.analysis.trendStrength * 100).toFixed(0)}%`;
+                    document.getElementById('macdValue').textContent = `${result.analysis.macd.macd.toFixed(5)}`;
+                    
+                    // Mise à jour des niveaux de Fibonacci
+                    const fib = result.analysis.fibonacciLevels;
+                    document.getElementById('fib0').textContent = formatPrice(fib['0%'], currentSymbol);
+                    document.getElementById('fib236').textContent = formatPrice(fib['23.6%'], currentSymbol);
+                    document.getElementById('fib382').textContent = formatPrice(fib['38.2%'], currentSymbol);
+                    document.getElementById('fib50').textContent = formatPrice(fib['50%'], currentSymbol);
+                    document.getElementById('fib618').textContent = formatPrice(fib['61.8%'], currentSymbol);
+                    document.getElementById('fib100').textContent = formatPrice(fib['100%'], currentSymbol);
+                    
+                    // Mise à jour des signaux de trading
+                    updateTradingSignals(result.signals);
+                    
+                    // Mise à jour des bandes de Bollinger sur le graphique
+                    if (priceChart && result.analysis.bollinger) {
+                        const currentTime = new Date();
+                        priceChart.data.datasets[1].data.push(result.analysis.bollinger.upper);
+                        priceChart.data.datasets[2].data.push(result.analysis.bollinger.lower);
+                        priceChart.update('none');
+                    }
+                }
                 
             } catch (error) {
                 console.error('Erreur lors du calcul:', error);
-                alert('Erreur lors du calcul des paramètres de trading');
             }
         }
         
-        // Formatage des prix
-        function formatPrice(price) {
-            const decimals = currentSymbol === 'BTCUSD' ? 0 : 5;
-            return parseFloat(price).toFixed(decimals);
+        // Interprétation du RSI
+        function getRSISignal(rsi) {
+            if (rsi > 70) return '📈 Surachat';
+            if (rsi < 30) return '📉 Survente';
+            return '⚖️ Neutre';
         }
         
-        // Formatage du nom du symbole
-        function formatSymbolName(symbol) {
-            const names = {
-                'EURUSD': 'EUR/USD',
-                'XAUUSD': 'XAU/USD (Gold)',
-                'BTCUSD': 'BTC/USD (Bitcoin)'
-            };
-            return names[symbol] || symbol;
-        }
-        
-        // Recalcul manuel
-        function recalculate() {
-            calculateTrading();
-        }
-        
-        // Mise à jour automatique
-        async function updateAll() {
-            console.log(`\n🔄 [FRONT] ========== MISE À JOUR GLOBALE ==========`);
-            console.log(`🔄 [FRONT] Début de la mise à jour pour ${currentSymbol}`);
+        // Mise à jour des signaux de trading
+        function updateTradingSignals(signals) {
+            const buySignal = document.getElementById('buySignal');
+            const sellSignal = document.getElementById('sellSignal');
             
-            const startTime = Date.now();
+            // Signal d'achat
+            if (signals.buy) {
+                buySignal.className = 'signal-light signal-buy';
+                buySignal.textContent = 'BUY';
+            } else {
+                buySignal.className = 'signal-light signal-neutral';
+                buySignal.textContent = 'NEUTRE';
+            }
             
-            try {
-                // Récupération des données de prix
-                const priceData = await fetchPriceData();
-                if (!priceData) {
-                    console.log(`❌ [FRONT] Échec de récupération des données`);
-                    return;
-                }
-                
-                // Calcul des paramètres de trading
-                await calculateTrading();
-                
-                const endTime = Date.now();
-                const duration = endTime - startTime;
-                
-                // Mise à jour du timestamp
-                const now = new Date();
-                document.getElementById('lastUpdate').textContent = 
-                    `Dernière mise à jour: ${now.toLocaleTimeString()} (${duration}ms)`;
-                
-                console.log(`✅ [FRONT] Mise à jour terminée en ${duration}ms`);
-                console.log(`🔄 [FRONT] =======================================\n`);
-                
-            } catch (error) {
-                console.error('❌ [FRONT] Erreur lors de la mise à jour globale:', error);
-                
-                // Affichage d'erreur dans l'interface
-                document.getElementById('lastUpdate').textContent = 
-                    `Erreur lors de la mise à jour: ${new Date().toLocaleTimeString()}`;
-                document.getElementById('connectionStatus').innerHTML = '🔴 Erreur système';
-                document.getElementById('connectionStatus').style.background = '#e74c3c';
+            // Signal de vente
+            if (signals.sell) {
+                sellSignal.className = 'signal-light signal-sell';
+                sellSignal.textContent = 'SELL';
+            } else {
+                sellSignal.className = 'signal-light signal-neutral';
+                sellSignal.textContent = 'NEUTRE';
             }
         }
         
-        // Changement d'instrument
-        document.getElementById('symbolSelect').addEventListener('change', function() {
-            const oldSymbol = currentSymbol;
-            currentSymbol = this.value;
-            console.log(`🔄 [FRONT] Changement d'instrument: ${oldSymbol} → ${currentSymbol}`);
-            updateAll();
-        });
-        
-        // Mise à jour automatique des paramètres avec debounce
-        ['balance', 'riskPercent', 'stopLoss', 'riskReward', 'horizon'].forEach(id => {
-            document.getElementById(id).addEventListener('input', function() {
-                console.log(`⚙️ [FRONT] Paramètre modifié: ${id} = ${this.value}`);
-                
-                // Débounce pour éviter trop d'appels
-                clearTimeout(this.timeout);
-                this.timeout = setTimeout(() => {
-                    console.log(`🔄 [FRONT] Recalcul automatique déclenché par ${id}`);
-                    calculateTrading();
-                }, 500);
-            });
-        });
-        
-        // Initialisation
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log(`🚀 [FRONT] ========== INITIALISATION ==========`);
-            console.log(`🚀 [FRONT] DOM chargé, démarrage de l'application`);
+        // Initialisation de l'application
+        function initializeApp() {
+            console.log('🚀 Initialisation de l\'analyseur de trading...');
             
-            initChart();
-            console.log(`📊 [FRONT] Graphique initialisé`);
+            // Initialisation du graphique
+            initializeChart();
             
-            updateAll();
-            console.log(`🔄 [FRONT] Première mise à jour lancée`);
+            // Premier chargement des données
+            updatePriceData();
             
             // Mise à jour automatique toutes les 30 secondes
-            updateInterval = setInterval(() => {
-                console.log(`⏰ [FRONT] Mise à jour automatique programmée`);
-                updateAll();
-            }, 30000);
+            updateInterval = setInterval(updatePriceData, 30000);
             
-            console.log(`⏰ [FRONT] Timer de mise à jour configuré (30s)`);
-            console.log(`🚀 [FRONT] ========================================`);
-        });
+            console.log('✅ Application initialisée avec succès');
+        }
         
-        // Nettoyage à la fermeture
-        window.addEventListener('beforeunload', function() {
+        // Gestion de l'arrêt de l'application
+        window.addEventListener('beforeunload', () => {
             if (updateInterval) {
                 clearInterval(updateInterval);
             }
+        });
+        
+        // Démarrage de l'application
+        document.addEventListener('DOMContentLoaded', initializeApp);
+        
+        // Recalcul automatique lors de la modification des paramètres
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('change', () => {
+                setTimeout(calculatePositioning, 500); // Délai pour éviter les appels trop fréquents
+            });
         });
     </script>
 </body>
