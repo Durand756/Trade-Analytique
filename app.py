@@ -104,34 +104,78 @@ def calculate_technical_indicators(df):
         return None
     
     try:
-        close = df['close'].values
-        high = df['high'].values
-        low = df['low'].values
+        # Préparation des données
+        df_clean = df.copy()
+        df_clean = df_clean.fillna(method='ffill').fillna(method='bfill')
         
-        # Indicateurs techniques
-        rsi = ta.momentum.RSIIndicator(pd.Series(close), window=14).rsi()
-        macd_line = ta.trend.MACD(pd.Series(close)).macd()
-        macd_signal = ta.trend.MACD(pd.Series(close)).macd_signal()
-        ma20 = ta.trend.SMAIndicator(pd.Series(close), window=20).sma_indicator()
-        ma50 = ta.trend.SMAIndicator(pd.Series(close), window=50).sma_indicator()
-        atr = ta.volatility.AverageTrueRange(pd.Series(high), pd.Series(low), pd.Series(close), window=14).average_true_range()
+        close_series = df_clean['close'].astype(float)
+        high_series = df_clean['high'].astype(float)
+        low_series = df_clean['low'].astype(float)
+        volume_series = df_clean['volume'].astype(float)
         
-        # Bollinger Bands
-        bb = ta.volatility.BollingerBands(pd.Series(close), window=20, window_dev=2)
-        bb_upper = bb.bollinger_hband()
-        bb_lower = bb.bollinger_lband()
+        # Indicateurs techniques avec gestion d'erreur
+        try:
+            rsi = ta.momentum.RSIIndicator(close_series, window=14).rsi()
+            rsi_value = float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else 50.0
+        except:
+            rsi_value = 50.0
+        
+        try:
+            macd_indicator = ta.trend.MACD(close_series)
+            macd_line = macd_indicator.macd()
+            macd_signal = macd_indicator.macd_signal()
+            macd_value = float(macd_line.iloc[-1] - macd_signal.iloc[-1]) if not pd.isna(macd_line.iloc[-1]) else 0.0
+        except:
+            macd_value = 0.0
+        
+        try:
+            ma20 = ta.trend.SMAIndicator(close_series, window=20).sma_indicator()
+            ma20_value = float(ma20.iloc[-1]) if not pd.isna(ma20.iloc[-1]) else float(close_series.iloc[-1])
+        except:
+            ma20_value = float(close_series.iloc[-1])
+        
+        try:
+            ma50 = ta.trend.SMAIndicator(close_series, window=50).sma_indicator()
+            ma50_value = float(ma50.iloc[-1]) if not pd.isna(ma50.iloc[-1]) else float(close_series.iloc[-1])
+        except:
+            ma50_value = float(close_series.iloc[-1])
+        
+        try:
+            atr = ta.volatility.AverageTrueRange(high_series, low_series, close_series, window=14).average_true_range()
+            atr_value = float(atr.iloc[-1]) if not pd.isna(atr.iloc[-1]) else float(close_series.iloc[-1]) * 0.01
+        except:
+            atr_value = float(close_series.iloc[-1]) * 0.01
+        
+        try:
+            bb = ta.volatility.BollingerBands(close_series, window=20, window_dev=2)
+            bb_upper_value = float(bb.bollinger_hband().iloc[-1]) if not pd.isna(bb.bollinger_hband().iloc[-1]) else float(close_series.iloc[-1])
+            bb_lower_value = float(bb.bollinger_lband().iloc[-1]) if not pd.isna(bb.bollinger_lband().iloc[-1]) else float(close_series.iloc[-1])
+        except:
+            bb_upper_value = float(close_series.iloc[-1])
+            bb_lower_value = float(close_series.iloc[-1])
         
         return {
-            'rsi': float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else 50,
-            'macd': float(macd_line.iloc[-1] - macd_signal.iloc[-1]) if not pd.isna(macd_line.iloc[-1]) else 0,
-            'ma20': float(ma20.iloc[-1]) if not pd.isna(ma20.iloc[-1]) else close[-1],
-            'ma50': float(ma50.iloc[-1]) if not pd.isna(ma50.iloc[-1]) else close[-1],
-            'atr': float(atr.iloc[-1]) if not pd.isna(atr.iloc[-1]) else close[-1] * 0.01,
-            'bb_upper': float(bb_upper.iloc[-1]) if not pd.isna(bb_upper.iloc[-1]) else close[-1],
-            'bb_lower': float(bb_lower.iloc[-1]) if not pd.isna(bb_lower.iloc[-1]) else close[-1]
+            'rsi': rsi_value,
+            'macd': macd_value,
+            'ma20': ma20_value,
+            'ma50': ma50_value,
+            'atr': atr_value,
+            'bb_upper': bb_upper_value,
+            'bb_lower': bb_lower_value
         }
-    except:
-        return None
+        
+    except Exception as e:
+        print(f"Erreur calcul indicateurs: {e}")
+        current_price = float(df['close'].iloc[-1])
+        return {
+            'rsi': 50.0,
+            'macd': 0.0,
+            'ma20': current_price,
+            'ma50': current_price,
+            'atr': current_price * 0.01,
+            'bb_upper': current_price,
+            'bb_lower': current_price
+        }
 
 def predict_price_movement(df):
     """Prédit les variations de prix à 1min, 5min"""
