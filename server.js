@@ -1,412 +1,435 @@
-const data = priceCache[symbol];
-const currentPrice = data.current;
-const atr = data.atr;
-const prices =const express = require('express');
+const express = require('express');
 const axios = require('axios');
-const path = require('path');
 const cors = require('cors');
+const path = require('path');
 const cron = require('node-cron');
+const WebSocket = require('ws');
 const math = require('mathjs');
 const ss = require('simple-statistics');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
 // Cache pour les données de prix
 let priceCache = {
-  'EURUSD': { prices: [], lastUpdate: 0, current: 0, atr: 0 },
-  'XAUUSD': { prices: [], lastUpdate: 0, current: 0, atr: 0 },
-  'BTCUSD': { prices: [], lastUpdate: 0, current: 0, atr: 0 }
+  'EUR/USD': { price: 0, history: [], lastUpdate: 0 },
+  'XAU/USD': { price: 0, history: [], lastUpdate: 0 },
+  'BTC/USD': { price: 0, history: [], lastUpdate: 0 }
 };
 
-// Clés API gratuites (remplacer par vos vraies clés)
+// Configuration des APIs
 const API_KEYS = {
-  ALPHA_VANTAGE: 'E4XCMP01EGN3VVP0', // Remplacer par votre clé
-  TWELVE_DATA: '5ccd04ee86d74c468738a110b9a1cd45'    // Remplacer par votre clé
+  alphavantage: process.env.ALPHAVANTAGE_KEY || 'demo',
+  twelvedata: process.env.TWELVEDATA_KEY || 'demo',
+  finhub: process.env.FINNHUB_KEY || 'demo'
 };
 
-// Fonctions utilitaires pour les calculs financiers
-function calculateATR(prices, period = 14) {
-  if (prices.length < period + 1) return 0;
-  
-  const trueRanges = [];
-  for (let i = 1; i < prices.length; i++) {
-    const high = prices[i].high;
-    const low = prices[i].low;
-    const prevClose = prices[i-1].close;
+// Fonctions d'analyse technique avancée
+class TechnicalAnalyzer {
+  static calculateATR(prices, period = 14) {
+    if (prices.length < period + 1) return 0;
     
-    const tr = Math.max(
-      high - low,
-      Math.abs(high - prevClose),
-      Math.abs(low - prevClose)
-    );
-    trueRanges.push(tr);
+    let trueRanges = [];
+    for (let i = 1; i < prices.length; i++) {
+      const current = prices[i];
+      const previous = prices[i - 1];
+      
+      const tr = Math.max(
+        current.high - current.low,
+        Math.abs(current.high - previous.close),
+        Math.abs(current.low - previous.close)
+      );
+      trueRanges.push(tr);
+    }
+    
+    return ss.mean(trueRanges.slice(-period));
   }
   
-  return trueRanges.slice(-period).reduce((a, b) => a + b, 0) / period;
-}
-
-
-
-function calculateSMA(prices, period) {
-  if (prices.length < period) return 0;
-  const values = prices.slice(-period).map(p => p.close);
-  return values.reduce((a, b) => a + b, 0) / period;
-}
-
-function calculateRSI(prices, period = 14) {
-  if (prices.length < period + 1) return 50;
-  
-  const changes = [];
-  for (let i = 1; i < prices.length; i++) {
-    changes.push(prices[i].close - prices[i-1].close);
+  static calculateRSI(prices, period = 14) {
+    if (prices.length < period + 1) return 50;
+    
+    let gains = [];
+    let losses = [];
+    
+    for (let i = 1; i < prices.length; i++) {
+      const change = prices[i].close - prices[i - 1].close;
+      if (change > 0) {
+        gains.push(change);
+        losses.push(0);
+      } else {
+        gains.push(0);
+        losses.push(Math.abs(change));
+      }
+    }
+    
+    const avgGain = ss.mean(gains.slice(-period));
+    const avgLoss = ss.mean(losses.slice(-period));
+    
+    if (avgLoss === 0) return 100;
+    const rs = avgGain / avgLoss;
+    return 100 - (100 / (1 + rs));
   }
   
-  const gains = changes.map(c => c > 0 ? c : 0);
-  const losses = changes.map(c => c < 0 ? Math.abs(c) : 0);
-  
-  const avgGain = gains.slice(-period).reduce((a, b) => a + b, 0) / period;
-  const avgLoss = losses.slice(-period).reduce((a, b) => a + b, 0) / period;
-  
-  if (avgLoss === 0) return 100;
-  const rs = avgGain / avgLoss;
-  return 100 - (100 / (1 + rs));
-}
-
-function predictPrice(prices, horizon) {
-  if (prices.length < 10) return prices[prices.length - 1].close;
-  
-  // Modèle AR(1) simple pour prédiction
-  const returns = [];
-  for (let i = 1; i < prices.length; i++) {
-    returns.push(Math.log(prices[i].close / prices[i-1].close));
+  static calculateBollingerBands(prices, period = 20, stdDev = 2) {
+    if (prices.length < period) return { upper: 0, middle: 0, lower: 0 };
+    
+    const closePrices = prices.slice(-period).map(p => p.close);
+    const sma = ss.mean(closePrices);
+    const std = ss.standardDeviation(closePrices);
+    
+    return {
+      upper: sma + (std * stdDev),
+      middle: sma,
+      lower: sma - (std * stdDev)
+    };
   }
   
-  const meanReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
-  const volatility = math.std(returns);
+  static calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
+    if (prices.length < slowPeriod) return { macd: 0, signal: 0, histogram: 0 };
+    
+    const closePrices = prices.map(p => p.close);
+    
+    // Calcul des EMA
+    const fastEMA = this.calculateEMA(closePrices, fastPeriod);
+    const slowEMA = this.calculateEMA(closePrices, slowPeriod);
+    
+    const macdLine = fastEMA - slowEMA;
+    
+    // Signal line (EMA du MACD)
+    const macdHistory = [macdLine]; // Simplifié pour la démonstration
+    const signalLine = this.calculateEMA(macdHistory, signalPeriod);
+    
+    return {
+      macd: macdLine,
+      signal: signalLine,
+      histogram: macdLine - signalLine
+    };
+  }
   
-  // Monte Carlo simple
-  const currentPrice = prices[prices.length - 1].close;
-  const drift = meanReturn - (volatility * volatility) / 2;
-  const randomShock = math.random() - 0.5; // Distribution normale simplifiée
+  static calculateEMA(prices, period) {
+    if (prices.length === 0) return 0;
+    
+    const k = 2 / (period + 1);
+    let ema = prices[0];
+    
+    for (let i = 1; i < prices.length; i++) {
+      ema = (prices[i] * k) + (ema * (1 - k));
+    }
+    
+    return ema;
+  }
   
-  const prediction = currentPrice * Math.exp(drift * horizon + volatility * Math.sqrt(horizon) * randomShock);
-  return prediction;
+  static calculateFibonacciLevels(high, low) {
+    const range = high - low;
+    return {
+      '0%': high,
+      '23.6%': high - (range * 0.236),
+      '38.2%': high - (range * 0.382),
+      '50%': high - (range * 0.5),
+      '61.8%': high - (range * 0.618),
+      '78.6%': high - (range * 0.786),
+      '100%': low
+    };
+  }
 }
 
-// Récupération des données Forex/Gold via Twelve Data
-async function fetchForexData(symbol) {
+// Récupération des données en temps réel
+async function fetchEURUSD() {
   try {
-    const response = await axios.get(`https://api.twelvedata.com/time_series`, {
+    // API AlphaVantage pour EUR/USD
+    const response = await axios.get(`https://www.alphavantage.co/query`, {
       params: {
-        symbol: symbol,
-        interval: '5min',
-        outputsize: 50,
-        apikey: API_KEYS.TWELVE_DATA
-      },
-      timeout: 10000
+        function: 'FX_INTRADAY',
+        from_symbol: 'EUR',
+        to_symbol: 'USD',
+        interval: '1min',
+        apikey: API_KEYS.alphavantage
+      }
     });
     
-    if (response.data && response.data.values) {
-      return response.data.values.map(item => ({
-        timestamp: new Date(item.datetime).getTime(),
-        open: parseFloat(item.open),
-        high: parseFloat(item.high),
-        low: parseFloat(item.low),
-        close: parseFloat(item.close),
-        volume: parseFloat(item.volume || 0)
-      })).reverse();
+    if (response.data['Time Series FX (1min)']) {
+      const timeSeries = response.data['Time Series FX (1min)'];
+      const latestTime = Object.keys(timeSeries)[0];
+      const latestData = timeSeries[latestTime];
+      
+      const price = parseFloat(latestData['4. close']);
+      const candleData = {
+        time: latestTime,
+        open: parseFloat(latestData['1. open']),
+        high: parseFloat(latestData['2. high']),
+        low: parseFloat(latestData['3. low']),
+        close: price,
+        volume: parseFloat(latestData['5. volume'] || 0)
+      };
+      
+      priceCache['EUR/USD'].price = price;
+      priceCache['EUR/USD'].history.push(candleData);
+      priceCache['EUR/USD'].lastUpdate = Date.now();
+      
+      // Garder seulement les 1000 dernières bougies
+      if (priceCache['EUR/USD'].history.length > 1000) {
+        priceCache['EUR/USD'].history = priceCache['EUR/USD'].history.slice(-1000);
+      }
     }
   } catch (error) {
-    console.log(`Erreur Twelve Data pour ${symbol}:`, error.message);
+    console.error('Erreur récupération EUR/USD:', error.message);
+    // Fallback avec données simulées réalistes
+    const lastPrice = priceCache['EUR/USD'].price || 1.0850;
+    const volatility = 0.0001;
+    const newPrice = lastPrice + (Math.random() - 0.5) * volatility;
+    priceCache['EUR/USD'].price = newPrice;
   }
-  return null;
 }
 
-// Récupération des données crypto via CoinGecko (gratuit)
-async function fetchCryptoData() {
+async function fetchXAUUSD() {
   try {
-    const response = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin/ohlc', {
+    // API pour l'or (utilisation de Finnhub comme fallback)
+    const response = await axios.get('https://finnhub.io/api/v1/quote', {
       params: {
-        vs_currency: 'usd',
-        days: '1'
-      },
-      timeout: 10000
+        symbol: 'OANDA:XAUUSD',
+        token: API_KEYS.finhub
+      }
     });
     
-    if (response.data && response.data.length > 0) {
-      return response.data.map(item => ({
-        timestamp: item[0],
-        open: item[1],
-        high: item[2],
-        low: item[3],
-        close: item[4],
+    if (response.data.c) {
+      const price = response.data.c;
+      const candleData = {
+        time: new Date().toISOString(),
+        open: response.data.o,
+        high: response.data.h,
+        low: response.data.l,
+        close: price,
         volume: 0
-      }));
+      };
+      
+      priceCache['XAU/USD'].price = price;
+      priceCache['XAU/USD'].history.push(candleData);
+      priceCache['XAU/USD'].lastUpdate = Date.now();
+      
+      if (priceCache['XAU/USD'].history.length > 1000) {
+        priceCache['XAU/USD'].history = priceCache['XAU/USD'].history.slice(-1000);
+      }
     }
   } catch (error) {
-    console.log('Erreur CoinGecko:', error.message);
+    console.error('Erreur récupération XAU/USD:', error.message);
+    // Fallback
+    const lastPrice = priceCache['XAU/USD'].price || 2000;
+    const volatility = 5;
+    const newPrice = lastPrice + (Math.random() - 0.5) * volatility;
+    priceCache['XAU/USD'].price = newPrice;
   }
-  return null;
 }
 
-// Données de fallback (simulation réaliste basée sur vraies données)
-function generateRealisticData(symbol, basePrice) {
-  const data = [];
-  let price = basePrice;
-  const now = Date.now();
-  
-  for (let i = 49; i >= 0; i--) {
-    const timestamp = now - (i * 5 * 60 * 1000); // 5 min intervals
-    const volatility = symbol === 'BTCUSD' ? 0.02 : 0.001;
-    const change = (Math.random() - 0.5) * volatility;
-    
-    price = price * (1 + change);
-    const spread = price * (symbol === 'BTCUSD' ? 0.0005 : 0.00002);
-    
-    data.push({
-      timestamp,
-      open: price - spread/2,
-      high: price + Math.random() * spread * 2,
-      low: price - Math.random() * spread * 2,
-      close: price + spread/2,
-      volume: Math.random() * 1000
+async function fetchBTCUSD() {
+  try {
+    // API CoinGecko pour Bitcoin
+    const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
+      params: {
+        ids: 'bitcoin',
+        vs_currencies: 'usd',
+        include_24hr_change: 'true',
+        include_24hr_vol: 'true',
+        include_last_updated_at: 'true'
+      }
     });
-  }
-  
-  return data;
-}
-
-// Mise à jour des données de prix
-async function updatePricesData() {
-  console.log('Mise à jour des données de prix...');
-  
-  // EUR/USD
-  let eurusdData = await fetchForexData('EUR/USD');
-  if (!eurusdData) {
-    eurusdData = generateRealisticData('EURUSD', 1.0850);
-  }
-  
-  priceCache.EURUSD.prices = eurusdData;
-  priceCache.EURUSD.current = eurusdData[eurusdData.length - 1].close;
-  priceCache.EURUSD.atr = calculateATR(eurusdData);
-  priceCache.EURUSD.lastUpdate = Date.now();
-  
-  // XAU/USD (Gold)
-  let xauusdData = await fetchForexData('XAU/USD');
-  if (!xauusdData) {
-    xauusdData = generateRealisticData('XAUUSD', 2650.50);
-  }
-  
-  priceCache.XAUUSD.prices = xauusdData;
-  priceCache.XAUUSD.current = xauusdData[xauusdData.length - 1].close;
-  priceCache.XAUUSD.atr = calculateATR(xauusdData);
-  priceCache.XAUUSD.lastUpdate = Date.now();
-  
-  // BTC/USD
-  let btcusdData = await fetchCryptoData();
-  if (!btcusdData) {
-    btcusdData = generateRealisticData('BTCUSD', 95000);
-  }
-  
-  priceCache.BTCUSD.prices = btcusdData;
-  priceCache.BTCUSD.current = btcusdData[btcusdData.length - 1].close;
-  priceCache.BTCUSD.atr = calculateATR(btcusdData);
-  priceCache.BTCUSD.lastUpdate = Date.now();
-}
-
-// API Endpoints
-
-// Récupérer les données de prix
-app.get('/api/prices/:symbol', (req, res) => {
-  const symbol = req.params.symbol.toUpperCase();
-  
-  if (!priceCache[symbol]) {
-    return res.status(404).json({ error: 'Symbole non trouvé' });
-  }
-  
-  const data = priceCache[symbol];
-  const prices = data.prices;
-  
-  if (prices.length === 0) {
-    return res.status(503).json({ error: 'Données non disponibles' });
-  }
-  
-  const currentPrice = data.current;
-  const atr = data.atr;
-  const sma20 = calculateSMA(prices, 20);
-  const sma50 = calculateSMA(prices, 50);
-  const rsi = calculateRSI(prices);
-  
-  res.json({
-    symbol,
-    currentPrice,
-    atr,
-    sma20,
-    sma50,
-    rsi,
-    prices: prices.slice(-50), // 50 derniers points pour le graphique
-    lastUpdate: data.lastUpdate,
-    trend: sma20 > sma50 ? 'Bullish' : 'Bearish',
-    strength: rsi > 70 ? 'Surachat' : rsi < 30 ? 'Survente' : 'Neutre'
-  });
-});
-
-// Calculer SL, TP, position sizing et prédictions
-app.post('/api/calc', (req, res) => {
-  const { symbol, balance, riskPercent, stopLossPips, horizonDays, riskRewardRatio } = req.body;
-  
-  if (!priceCache[symbol] || priceCache[symbol].prices.length === 0) {
-    return res.status(404).json({ error: 'Données non disponibles pour ce symbole' });
-  }
-  
-  const data = priceCache[symbol];
-  const currentPrice = data.current;
-  const atr = data.atr;
-  const prices = data.prices;
-  
-  // Conversion pips en prix selon le symbole
-  let pipValue;
-  let contractSize;
-  
-  if (symbol === 'EURUSD') {
-    pipValue = 0.0001;
-    contractSize = 100000; // Lot standard
-  } else if (symbol === 'XAUUSD') {
-    pipValue = 0.1;
-    contractSize = 100; // Once d'or
-  } else if (symbol === 'BTCUSD') {
-    pipValue = 1;
-    contractSize = 1; // 1 BTC
-  }
-  
-  // Calcul du Stop Loss et Take Profit
-  const stopLossPrice = currentPrice - (stopLossPips * pipValue);
-  const takeProfitPrice = currentPrice + (stopLossPips * pipValue * riskRewardRatio);
-  
-  // Position sizing basé sur le risque
-  const riskAmount = balance * (riskPercent / 100);
-  const stopLossDistance = Math.abs(currentPrice - stopLossPrice);
-  const positionSize = riskAmount / stopLossDistance;
-  
-  // Calcul des lots/unités
-  const lots = positionSize / contractSize;
-  const units = Math.floor(positionSize);
-  
-  // Prédictions de prix
-  const pricePrediction = predictPrice(prices, horizonDays);
-  const pricePredictionBull = predictPrice(prices, horizonDays) * 1.05;
-  const pricePredictionBear = predictPrice(prices, horizonDays) * 0.95;
-  
-  // Calculs de profit/perte potentiels
-  const potentialProfit = (takeProfitPrice - currentPrice) * units;
-  const potentialLoss = (currentPrice - stopLossPrice) * units;
-  
-  // Probabilité basée sur ATR et volatilité
-  const volatility = math.std(prices.slice(-20).map(p => p.close));
-  const probability = Math.max(0.3, Math.min(0.8, 0.6 - (volatility / currentPrice) * 10));
-  
-  res.json({
-    currentPrice: currentPrice.toFixed(symbol === 'BTCUSD' ? 0 : 5),
-    stopLossPrice: stopLossPrice.toFixed(symbol === 'BTCUSD' ? 0 : 5),
-    takeProfitPrice: takeProfitPrice.toFixed(symbol === 'BTCUSD' ? 0 : 5),
-    positionSize: units,
-    lots: lots.toFixed(2),
-    atr: atr.toFixed(symbol === 'BTCUSD' ? 0 : 5),
-    riskAmount: riskAmount.toFixed(2),
-    potentialProfit: potentialProfit.toFixed(2),
-    potentialLoss: potentialLoss.toFixed(2),
-    riskRewardRatio: (potentialProfit / Math.abs(potentialLoss)).toFixed(2),
-    predictions: {
-      neutral: pricePrediction.toFixed(symbol === 'BTCUSD' ? 0 : 5),
-      bullish: pricePredictionBull.toFixed(symbol === 'BTCUSD' ? 0 : 5),
-      bearish: pricePredictionBear.toFixed(symbol === 'BTCUSD' ? 0 : 5),
-      horizon: horizonDays,
-      probability: (probability * 100).toFixed(1)
+    
+    if (response.data.bitcoin) {
+      const price = response.data.bitcoin.usd;
+      const candleData = {
+        time: new Date().toISOString(),
+        open: price * 0.999, // Approximation
+        high: price * 1.001,
+        low: price * 0.998,
+        close: price,
+        volume: response.data.bitcoin.usd_24h_vol || 0
+      };
+      
+      priceCache['BTC/USD'].price = price;
+      priceCache['BTC/USD'].history.push(candleData);
+      priceCache['BTC/USD'].lastUpdate = Date.now();
+      
+      if (priceCache['BTC/USD'].history.length > 1000) {
+        priceCache['BTC/USD'].history = priceCache['BTC/USD'].history.slice(-1000);
+      }
     }
-  });
+  } catch (error) {
+    console.error('Erreur récupération BTC/USD:', error.message);
+    // Fallback
+    const lastPrice = priceCache['BTC/USD'].price || 45000;
+    const volatility = 500;
+    const newPrice = lastPrice + (Math.random() - 0.5) * volatility;
+    priceCache['BTC/USD'].price = newPrice;
+  }
+}
+
+// Mise à jour automatique des prix
+async function updateAllPrices() {
+  console.log('Mise à jour des prix en cours...');
+  await Promise.all([
+    fetchEURUSD(),
+    fetchXAUUSD(),
+    fetchBTCUSD()
+  ]);
+  console.log('Mise à jour terminée');
+}
+
+// Endpoints API
+app.get('/api/prices/:symbol', (req, res) => {
+  const symbol = req.params.symbol.replace('-', '/');
+  
+  if (priceCache[symbol]) {
+    const data = priceCache[symbol];
+    const history = data.history.slice(-100); // Dernières 100 bougies
+    
+    res.json({
+      symbol,
+      currentPrice: data.price,
+      lastUpdate: data.lastUpdate,
+      history,
+      count: history.length
+    });
+  } else {
+    res.status(404).json({ error: 'Symbole non supporté' });
+  }
 });
 
-// Calculer SL, TP, position sizing et prédictions
 app.post('/api/calc', (req, res) => {
-  const { symbol, balance, riskPercent, stopLossPips, horizonDays, riskRewardRatio } = req.body;
-  
-  console.log(`\n🧮 [CALC] Demande de calcul pour:`);
-  console.log(`   • Symbole: ${symbol}`);
-  console.log(`   • Balance: ${balance}`);
-  console.log(`   • Risque: ${riskPercent}%`);
-  console.log(`   • SL: ${stopLossPips} pips`);
-  console.log(`   • R:R: ${riskRewardRatio}`);
-  console.log(`   • Horizon: ${horizonDays} jours`);
-  
-  if (!priceCache[symbol] || !priceCache[symbol].prices || priceCache[symbol].prices.length === 0) {
-    console.log(`❌ [CALC] Données non disponibles pour ${symbol}`);
-    return res.status(404).json({ error: 'Données non disponibles pour ce symbole' });
+  try {
+    const {
+      symbol,
+      balance,
+      riskPercent,
+      stopLossPips,
+      takeProfitRatio,
+      timeHorizon,
+      currentPrice
+    } = req.body;
+    
+    const symbolKey = symbol.replace('-', '/');
+    const data = priceCache[symbolKey];
+    
+    if (!data || data.history.length === 0) {
+      return res.status(400).json({ error: 'Données insuffisantes' });
+    }
+    
+    // Calculs d'analyse technique avancée
+    const atr = TechnicalAnalyzer.calculateATR(data.history);
+    const rsi = TechnicalAnalyzer.calculateRSI(data.history);
+    const bollinger = TechnicalAnalyzer.calculateBollingerBands(data.history);
+    const macd = TechnicalAnalyzer.calculateMACD(data.history);
+    
+    // Calcul de la volatilité historique
+    const returns = [];
+    for (let i = 1; i < data.history.length; i++) {
+      const ret = Math.log(data.history[i].close / data.history[i-1].close);
+      returns.push(ret);
+    }
+    const volatility = ss.standardDeviation(returns) * Math.sqrt(252); // Annualisée
+    
+    // Détermination de la taille de position
+    const riskAmount = balance * (riskPercent / 100);
+    const pipValue = symbol.includes('USD') ? 
+      (symbol === 'BTC-USD' ? 1 : 0.0001) : 0.0001;
+    
+    const stopLossDistance = stopLossPips * pipValue;
+    const positionSize = riskAmount / stopLossDistance;
+    
+    // Calcul des niveaux de SL/TP dynamiques basés sur ATR
+    const atrMultiplier = 2;
+    const dynamicSL = currentPrice - (atr * atrMultiplier);
+    const dynamicTP = currentPrice + (atr * atrMultiplier * takeProfitRatio);
+    
+    // Calcul des niveaux de Fibonacci
+    const recentHigh = Math.max(...data.history.slice(-50).map(h => h.high));
+    const recentLow = Math.min(...data.history.slice(-50).map(h => h.low));
+    const fibonacciLevels = TechnicalAnalyzer.calculateFibonacciLevels(recentHigh, recentLow);
+    
+    // Prédiction de prix basée sur analyse technique
+    let trendDirection = 0;
+    if (rsi > 70) trendDirection = -0.5; // Surachat
+    else if (rsi < 30) trendDirection = 0.5; // Survente
+    
+    if (macd.macd > macd.signal) trendDirection += 0.3; // Signal haussier
+    else trendDirection -= 0.3; // Signal baissier
+    
+    if (currentPrice > bollinger.upper) trendDirection -= 0.2;
+    else if (currentPrice < bollinger.lower) trendDirection += 0.2;
+    
+    // Prédiction basée sur la volatilité et la tendance
+    const expectedReturn = trendDirection * volatility * Math.sqrt(timeHorizon / 365);
+    const predictedPrice = currentPrice * (1 + expectedReturn);
+    
+    // Calcul de probabilité de succès
+    const pricePosition = (currentPrice - bollinger.lower) / (bollinger.upper - bollinger.lower);
+    const successProbability = Math.max(0.1, Math.min(0.9, 
+      0.5 + (trendDirection * 0.3) + ((0.5 - pricePosition) * 0.2)
+    ));
+    
+    // Calcul du ratio risque/récompense optimal
+    const optimalRR = Math.max(1.5, Math.min(4, volatility * 100));
+    
+    res.json({
+      symbol: symbolKey,
+      analysis: {
+        currentPrice,
+        atr: parseFloat(atr.toFixed(5)),
+        rsi: parseFloat(rsi.toFixed(2)),
+        volatility: parseFloat((volatility * 100).toFixed(2)),
+        bollinger,
+        macd,
+        fibonacciLevels,
+        trendStrength: parseFloat(Math.abs(trendDirection).toFixed(2))
+      },
+      position: {
+        size: parseFloat(positionSize.toFixed(2)),
+        riskAmount: parseFloat(riskAmount.toFixed(2)),
+        stopLoss: parseFloat(dynamicSL.toFixed(5)),
+        takeProfit: parseFloat(dynamicTP.toFixed(5)),
+        riskRewardRatio: parseFloat(optimalRR.toFixed(2))
+      },
+      prediction: {
+        targetPrice: parseFloat(predictedPrice.toFixed(5)),
+        timeHorizon,
+        successProbability: parseFloat((successProbability * 100).toFixed(1)),
+        expectedReturn: parseFloat((expectedReturn * 100).toFixed(2)),
+        confidence: parseFloat((Math.min(data.history.length / 100, 1) * 100).toFixed(0))
+      },
+      signals: {
+        buy: trendDirection > 0.2 && rsi < 60,
+        sell: trendDirection < -0.2 && rsi > 40,
+        strength: Math.abs(trendDirection)
+      }
+    });
+    
+  } catch (error) {
+    console.error('Erreur calcul:', error);
+    res.status(500).json({ error: 'Erreur lors du calcul' });
   }
-  
+});
 
 // Route principale
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Mise à jour des données toutes les 2 minutes
-cron.schedule('*/2 * * * *', updatePricesData);
-
 // Démarrage du serveur
 app.listen(PORT, () => {
-  console.log('\n🚀 ================================');
-  console.log('🚀 DÉMARRAGE DU SERVEUR TRADING');
-  console.log('🚀 ================================');
-  console.log(`🌐 Serveur démarré sur le port ${PORT}`);
-  console.log(`📱 Interface web: http://localhost:${PORT}`);
-  console.log(`🔑 APIs configurées:`);
-  console.log(`   • Twelve Data: ${API_KEYS.TWELVE_DATA.length} clés`);
-  console.log(`   • Alpha Vantage: ${API_KEYS.ALPHA_VANTAGE.length} clés`);
-  console.log(`   • Finnhub: ${API_KEYS.FINNHUB.length} clés`);
-  console.log('🚀 ================================\n');
+  console.log(`🚀 Serveur de trading en cours d'exécution sur le port ${PORT}`);
   
-  console.log('🔄 Lancement de la première mise à jour des données...');
-  updatePricesData().then(() => {
-    console.log('✅ Première mise à jour terminée, serveur prêt !');
-  }).catch(error => {
-    console.log('❌ Erreur lors de la première mise à jour:', error.message);
-  });
+  // Mise à jour initiale des prix
+  updateAllPrices();
+  
+  // Programmation des mises à jour automatiques
+  cron.schedule('*/30 * * * * *', updateAllPrices); // Toutes les 30 secondes
 });
 
-// Gestion des erreurs non capturées
-process.on('uncaughtException', (error) => {
-  console.log('\n💀 ERREUR CRITIQUE NON CAPTURÉE:');
-  console.log('💀 ================================');
-  console.log(`💀 Message: ${error.message}`);
-  console.log(`💀 Stack: ${error.stack}`);
-  console.log('💀 ================================');
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.log('\n⚠️ PROMESSE REJETÉE NON GÉRÉE:');
-  console.log('⚠️ ================================');
-  console.log(`⚠️ Raison: ${reason}`);
-  console.log(`⚠️ Promise: ${promise}`);
-  console.log('⚠️ ================================');
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('\n🛑 ================================');
-  console.log('🛑 ARRÊT DU SERVEUR EN COURS...');
-  console.log('🛑 ================================');
-  process.exit(0);
-});
-
+// Gestion de l'arrêt propre
 process.on('SIGINT', () => {
-  console.log('\n🛑 ================================');
-  console.log('🛑 INTERRUPTION DÉTECTÉE (Ctrl+C)');
-  console.log('🛑 ARRÊT DU SERVEUR EN COURS...');
-  console.log('🛑 ================================');
+  console.log('Arrêt du serveur...');
   process.exit(0);
 });
