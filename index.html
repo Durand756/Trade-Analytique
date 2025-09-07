@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Analysis - Real Time</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .prediction-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .signal-buy { background-color: #48c78e !important; color: white !important; }
+        .signal-sell { background-color: #f14668 !important; color: white !important; }
+        .signal-neutral { background-color: #b5b5b5 !important; color: white !important; }
+        .rsi-oversold { background-color: #48c78e; color: white; }
+        .rsi-overbought { background-color: #f14668; color: white; }
+        .rsi-neutral { background-color: #3273dc; color: white; }
+        .indicator-value { font-size: 1.5rem; font-weight: bold; }
+        .chart-container { position: relative; height: 400px; }
+        .disclaimer { background-color: #ffe08a; border-left: 4px solid #f39c12; }
+        .blink { animation: blink-animation 1s steps(5, start) infinite; }
+        @keyframes blink-animation { to { visibility: hidden; } }
+        .confidence-bar { background: linear-gradient(90deg, #f14668 0%, #ffe08a 50%, #48c78e 100%); }
+        .prediction-arrow { font-size: 2rem; }
+        .up-arrow { color: #48c78e; }
+        .down-arrow { color: #f14668; }
+        .prediction-value { font-size: 1.2rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container is-fluid">
+        <!-- Header -->
+        <section class="hero is-primary is-small">
+            <div class="hero-body">
+                <div class="container">
+                    <h1 class="title">
+                        <i class="fas fa-chart-line"></i> Trading Analysis Pro
+                    </h1>
+                    <h2 class="subtitle">
+                        Analyse technique en temps réel avec prédictions IA
+                    </h2>
+                </div>
+            </div>
+        </section>
+
+        <!-- Disclaimer -->
+        <div class="notification disclaimer mt-4">
+            <strong><i class="fas fa-exclamation-triangle"></i> Avertissement Important:</strong>
+            À titre éducatif seulement. Les marchés financiers sont risqués. Je ne suis pas un conseiller financier.
+            Les prédictions ne garantissent pas les performances futures.
+        </div>
+
+        <!-- Controls -->
+        <div class="columns mt-4">
+            <div class="column">
+                <div class="field">
+                    <label class="label">Sélectionner l'actif</label>
+                    <div class="control">
+                        <div class="select is-large">
+                            <select id="assetSelect">
+                                <option value="EURUSD">EUR/USD</option>
+                                <option value="XAUUSD">XAU/USD (Or)</option>
+                                <option value="BTCUSD">BTC/USD</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="column">
+                <div class="field">
+                    <label class="label">Status de connexion</label>
+                    <div class="control">
+                        <span id="connectionStatus" class="tag is-success is-large">
+                            <i class="fas fa-wifi"></i> Connecté
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard -->
+        <div class="columns">
+            <!-- Price Chart -->
+            <div class="column is-8">
+                <div class="card">
+                    <div class="card-header">
+                        <p class="card-header-title">
+                            <i class="fas fa-chart-area"></i> 
+                            Graphique de Prix - <span id="chartSymbol">EUR/USD</span>
+                        </p>
+                    </div>
+                    <div class="card-content">
+                        <div class="chart-container">
+                            <canvas id="priceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Panel -->
+            <div class="column is-4">
+                <!-- Current Price -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <p class="card-header-title">
+                            <i class="fas fa-dollar-sign"></i> Prix Actuel
+                        </p>
+                    </div>
+                    <div class="card-content has-text-centered">
+                        <p class="title is-3" id="currentPrice">--</p>
+                        <p class="subtitle" id="lastUpdate">--</p>
+                    </div>
+                </div>
+
+                <!-- Predictions AI -->
+                <div class="card prediction-card mb-4">
+                    <div class="card-header">
+                        <p class="card-header-title has-text-white">
+                            <i class="fas fa-brain"></i> Prédictions IA
+                        </p>
+                    </div>
+                    <div class="card-content">
+                        <div class="columns is-mobile">
+                            <div class="column has-text-centered">
+                                <p class="has-text-weight-bold">1 min</p>
+                                <div id="prediction1min">
+                                    <i class="fas fa-arrow-up prediction-arrow up-arrow"></i>
+                                    <p class="prediction-value">+0.00%</p>
+                                </div>
+                            </div>
+                            <div class="column has-text-centered">
+                                <p class="has-text-weight-bold">5 min</p>
+                                <div id="prediction5min">
+                                    <i class="fas fa-arrow-up prediction-arrow up-arrow"></i>
+                                    <p class="prediction-value">+0.00%</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field mt-3">
+                            <label class="label has-text-white is-small">Confiance</label>
+                            <progress id="confidenceBar" class="progress is-success" value="0" max="100">0%</progress>
+                            <p class="has-text-centered has-text-weight-bold" id="confidenceText">0%</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trading Signal -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <p class="card-header-title">
+                            <i class="fas fa-signal"></i> Signal de Trading
+                        </p>
+                    </div>
+                    <div class="card-content">
+                        <div class="has-text-centered">
+                            <span id="tradingSignal" class="tag is-large signal-neutral">NEUTRE</span>
+                            <p class="mt-2">Force: <span id="signalStrength">0</span>%</p>
+                        </div>
+                        <div class="columns is-mobile mt-3">
+                            <div class="column">
+                                <p class="has-text-weight-bold has-text-danger">Stop Loss</p>
+                                <p id="stopLoss">--</p>
+                            </div>
+                            <div class="column">
+                                <p class="has-text-weight-bold has-text-success">Take Profit</p>
+                                <p id="takeProfit">--</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Technical Indicators -->
+        <div class="columns">
+            <div class="column">
+                <div class="card">
+                    <div class="card-header">
+                        <p class="card-header-title">
+                            <i class="fas fa-tachometer-alt"></i> Indicateurs Techniques
+                        </p>
+                    </div>
+                    <div class="card-content">
+                        <div class="columns is-multiline">
+                            <div class="column is-3">
+                                <div class="has-text-centered">
+                                    <p class="has-text-weight-bold">RSI (14)</p>
+                                    <span id="rsiValue" class="tag is-large rsi-neutral">50</span>
+                                </div>
+                            </div>
+                            <div class="column is-3">
+                                <div class="has-text-centered">
+                                    <p class="has-text-weight-bold">MACD</p>
+                                    <p id="macdValue" class="indicator-value">0.00</p>
+                                </div>
+                            </div>
+                            <div class="column is-3">
+                                <div class="has-text-centered">
+                                    <p class="has-text-weight-bold">MA20</p>
+                                    <p id="ma20Value" class="indicator-value">--</p>
+                                </div>
+                            </div>
+                            <div class="column is-3">
+                                <div class="has-text-centered">
+                                    <p class="has-text-weight-bold">MA50</p>
+                                    <p id="ma50Value" class="indicator-value">--</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let currentAsset = 'EURUSD';
+        let chart = null;
+        let updateInterval = null;
+
+        // Configuration Chart.js
+        const chartConfig = {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Prix',
+                        data: [],
+                        borderColor: '#3273dc',
+                        backgroundColor: 'rgba(50, 115, 220, 0.1)',
+                        borderWidth: 2,
+                        fill: true
+                    },
+                    {
+                        label: 'MA20',
+                        data: [],
+                        borderColor: '#48c78e',
+                        borderWidth: 1,
+                        fill: false
+                    },
+                    {
+                        label: 'MA50',
+                        data: [],
+                        borderColor: '#f14668',
+                        borderWidth: 1,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Temps'
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Prix'
+                        }
+                    }
+                }
+            }
+        };
+
+        // Initialisation du graphique
+        function initChart() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            chart = new Chart(ctx, chartConfig);
+        }
+
+        // Mise à jour de la connexion
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                status.className = 'tag is-success is-large';
+                status.innerHTML = '<i class="fas fa-wifi"></i> Connecté';
+            } else {
+                status.className = 'tag is-danger is-large blink';
+                status.innerHTML = '<i class="fas fa-wifi"></i> Déconnecté';
+            }
+        }
+
+        // Formatage des nombres
+        function formatPrice(price, symbol) {
+            if (symbol === 'BTCUSD') return price.toFixed(2);
+            if (symbol === 'XAUUSD') return price.toFixed(2);
+            return price.toFixed(5);
+        }
+
+        // Mise à jour des prédictions
+        function updatePredictions(predictions) {
+            const pred1min = document.getElementById('prediction1min');
+            const pred5min = document.getElementById('prediction5min');
+            const confidenceBar = document.getElementById('confidenceBar');
+            const confidenceText = document.getElementById('confidenceText');
+
+            // 1 minute
+            const icon1min = predictions['1min'] >= 0 ? 'fa-arrow-up up-arrow' : 'fa-arrow-down down-arrow';
+            const value1min = predictions['1min'] >= 0 ? `+${predictions['1min'].toFixed(3)}%` : `${predictions['1min'].toFixed(3)}%`;
+            pred1min.innerHTML = `
+                <i class="fas ${icon1min} prediction-arrow"></i>
+                <p class="prediction-value">${value1min}</p>
+            `;
+
+            // 5 minutes
+            const icon5min = predictions['5min'] >= 0 ? 'fa-arrow-up up-arrow' : 'fa-arrow-down down-arrow';
+            const value5min = predictions['5min'] >= 0 ? `+${predictions['5min'].toFixed(3)}%` : `${predictions['5min'].toFixed(3)}%`;
+            pred5min.innerHTML = `
+                <i class="fas ${icon5min} prediction-arrow"></i>
+                <p class="prediction-value">${value5min}</p>
+            `;
+
+            // Confiance
+            confidenceBar.value = predictions.confidence;
+            confidenceText.textContent = `${predictions.confidence}%`;
+        }
+
+        // Récupération des données
+        async function fetchData() {
+            try {
+                const response = await fetch(`/api/data/${currentAsset}`);
+                if (!response.ok) throw new Error('Erreur réseau');
+                
+                const data = await response.json();
+                updateConnectionStatus(true);
+                
+                // Mise à jour du prix actuel
+                document.getElementById('currentPrice').textContent = formatPrice(data.current_price, currentAsset);
+                document.getElementById('lastUpdate').textContent = new Date(data.timestamp).toLocaleTimeString();
+                
+                // Mise à jour du graphique
+                updateChart(data.data);
+                
+                return true;
+            } catch (error) {
+                console.error('Erreur lors du fetch des données:', error);
+                updateConnectionStatus(false);
+                return false;
+            }
+        }
+
+        // Récupération de l'analyse
+        async function fetchAnalysis() {
+            try {
+                const response = await fetch(`/api/analysis/${currentAsset}`);
+                if (!response.ok) throw new Error('Erreur analyse');
+                
+                const analysis = await response.json();
+                
+                // Mise à jour des indicateurs
+                updateIndicators(analysis.indicators);
+                
+                // Mise à jour des prédictions
+                updatePredictions(analysis.predictions);
+                
+                // Mise à jour du signal
+                updateTradingSignal(analysis.signal);
+                
+                return true;
+            } catch (error) {
+                console.error('Erreur lors du fetch de l\'analyse:', error);
+                return false;
+            }
+        }
+
+        // Mise à jour du graphique
+        function updateChart(data) {
+            if (!chart || !data || data.length === 0) return;
+            
+            const labels = data.map(item => new Date(item.datetime).toLocaleTimeString());
+            const prices = data.map(item => item.close);
+            
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = prices;
+            
+            // Calcul des moyennes mobiles pour l'affichage
+            if (prices.length >= 20) {
+                const ma20 = calculateMA(prices, 20);
+                chart.data.datasets[1].data = ma20;
+            }
+            
+            if (prices.length >= 50) {
+                const ma50 = calculateMA(prices, 50);
+                chart.data.datasets[2].data = ma50;
+            }
+            
+            chart.update('none');
+        }
+
+        // Calcul des moyennes mobiles
+        function calculateMA(prices, period) {
+            const ma = [];
+            for (let i = 0; i < prices.length; i++) {
+                if (i < period - 1) {
+                    ma.push(null);
+                } else {
+                    const sum = prices.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
+                    ma.push(sum / period);
+                }
+            }
+            return ma;
+        }
+
+        // Mise à jour des indicateurs
+        function updateIndicators(indicators) {
+            // RSI
+            const rsiElement = document.getElementById('rsiValue');
+            const rsiValue = indicators.rsi.toFixed(1);
+            rsiElement.textContent = rsiValue;
+            
+            if (indicators.rsi < 30) {
+                rsiElement.className = 'tag is-large rsi-oversold';
+            } else if (indicators.rsi > 70) {
+                rsiElement.className = 'tag is-large rsi-overbought';
+            } else {
+                rsiElement.className = 'tag is-large rsi-neutral';
+            }
+            
+            // MACD
+            document.getElementById('macdValue').textContent = indicators.macd.toFixed(4);
+            
+            // Moyennes mobiles
+            document.getElementById('ma20Value').textContent = formatPrice(indicators.ma20, currentAsset);
+            document.getElementById('ma50Value').textContent = formatPrice(indicators.ma50, currentAsset);
+        }
+
+        // Mise à jour du signal de trading
+        function updateTradingSignal(signal) {
+            const signalElement = document.getElementById('tradingSignal');
+            const strengthElement = document.getElementById('signalStrength');
+            const slElement = document.getElementById('stopLoss');
+            const tpElement = document.getElementById('takeProfit');
+            
+            // Signal
+            signalElement.textContent = signal.signal;
+            signalElement.className = `tag is-large signal-${signal.signal.toLowerCase()}`;
+            
+            // Force du signal
+            strengthElement.textContent = signal.strength;
+            
+            // SL/TP
+            if (signal.sl > 0) {
+                slElement.textContent = formatPrice(signal.sl, currentAsset);
+            } else {
+                slElement.textContent = '--';
+            }
+            
+            if (signal.tp > 0) {
+                tpElement.textContent = formatPrice(signal.tp, currentAsset);
+            } else {
+                tpElement.textContent = '--';
+            }
+        }
+
+        // Changement d'actif
+        function changeAsset(newAsset) {
+            currentAsset = newAsset;
+            
+            // Mise à jour du titre
+            const symbolMap = {
+                'EURUSD': 'EUR/USD',
+                'XAUUSD': 'XAU/USD (Or)',
+                'BTCUSD': 'BTC/USD'
+            };
+            document.getElementById('chartSymbol').textContent = symbolMap[newAsset];
+            
+            // Reset des données
+            document.getElementById('currentPrice').textContent = '--';
+            document.getElementById('lastUpdate').textContent = '--';
+            
+            // Mise à jour immédiate
+            updateData();
+        }
+
+        // Mise à jour complète des données
+        async function updateData() {
+            const dataSuccess = await fetchData();
+            if (dataSuccess) {
+                await fetchAnalysis();
+            }
+        }
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialisation du graphique
+            initChart();
+            
+            // Event listener pour le changement d'actif
+            document.getElementById('assetSelect').addEventListener('change', function() {
+                changeAsset(this.value);
+            });
+            
+            // Première mise à jour
+            updateData();
+            
+            // Interval de mise à jour (toutes les 10 secondes)
+            updateInterval = setInterval(updateData, 10000);
+        });
+
+        // Nettoyage lors de la fermeture
+        window.addEventListener('beforeunload', function() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        });
+    </script>
+</body>
+</html>
