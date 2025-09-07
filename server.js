@@ -1,4 +1,7 @@
-const express = require('express');
+const data = priceCache[symbol];
+const currentPrice = data.current;
+const atr = data.atr;
+const prices =const express = require('express');
 const axios = require('axios');
 const path = require('path');
 const cors = require('cors');
@@ -22,8 +25,8 @@ let priceCache = {
 
 // Clés API gratuites (remplacer par vos vraies clés)
 const API_KEYS = {
-  ALPHA_VANTAGE: 'E4XCMP01EGN3VVP0', // Remplacer par votre clé
-  TWELVE_DATA: '5ccd04ee86d74c468738a110b9a1cd45'    // Remplacer par votre clé
+  ALPHA_VANTAGE: 'demo', // Remplacer par votre clé
+  TWELVE_DATA: 'demo'    // Remplacer par votre clé
 };
 
 // Fonctions utilitaires pour les calculs financiers
@@ -46,6 +49,8 @@ function calculateATR(prices, period = 14) {
   
   return trueRanges.slice(-period).reduce((a, b) => a + b, 0) / period;
 }
+
+
 
 function calculateSMA(prices, period) {
   if (prices.length < period) return 0;
@@ -326,6 +331,24 @@ app.post('/api/calc', (req, res) => {
   });
 });
 
+// Calculer SL, TP, position sizing et prédictions
+app.post('/api/calc', (req, res) => {
+  const { symbol, balance, riskPercent, stopLossPips, horizonDays, riskRewardRatio } = req.body;
+  
+  console.log(`\n🧮 [CALC] Demande de calcul pour:`);
+  console.log(`   • Symbole: ${symbol}`);
+  console.log(`   • Balance: ${balance}`);
+  console.log(`   • Risque: ${riskPercent}%`);
+  console.log(`   • SL: ${stopLossPips} pips`);
+  console.log(`   • R:R: ${riskRewardRatio}`);
+  console.log(`   • Horizon: ${horizonDays} jours`);
+  
+  if (!priceCache[symbol] || !priceCache[symbol].prices || priceCache[symbol].prices.length === 0) {
+    console.log(`❌ [CALC] Données non disponibles pour ${symbol}`);
+    return res.status(404).json({ error: 'Données non disponibles pour ce symbole' });
+  }
+  
+
 // Route principale
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -336,14 +359,54 @@ cron.schedule('*/2 * * * *', updatePricesData);
 
 // Démarrage du serveur
 app.listen(PORT, () => {
-  console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-  console.log(`📊 Interface disponible sur http://localhost:${PORT}`);
-  console.log('🔄 Première mise à jour des données...');
-  updatePricesData();
+  console.log('\n🚀 ================================');
+  console.log('🚀 DÉMARRAGE DU SERVEUR TRADING');
+  console.log('🚀 ================================');
+  console.log(`🌐 Serveur démarré sur le port ${PORT}`);
+  console.log(`📱 Interface web: http://localhost:${PORT}`);
+  console.log(`🔑 APIs configurées:`);
+  console.log(`   • Twelve Data: ${API_KEYS.TWELVE_DATA.length} clés`);
+  console.log(`   • Alpha Vantage: ${API_KEYS.ALPHA_VANTAGE.length} clés`);
+  console.log(`   • Finnhub: ${API_KEYS.FINNHUB.length} clés`);
+  console.log('🚀 ================================\n');
+  
+  console.log('🔄 Lancement de la première mise à jour des données...');
+  updatePricesData().then(() => {
+    console.log('✅ Première mise à jour terminée, serveur prêt !');
+  }).catch(error => {
+    console.log('❌ Erreur lors de la première mise à jour:', error.message);
+  });
+});
+
+// Gestion des erreurs non capturées
+process.on('uncaughtException', (error) => {
+  console.log('\n💀 ERREUR CRITIQUE NON CAPTURÉE:');
+  console.log('💀 ================================');
+  console.log(`💀 Message: ${error.message}`);
+  console.log(`💀 Stack: ${error.stack}`);
+  console.log('💀 ================================');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.log('\n⚠️ PROMESSE REJETÉE NON GÉRÉE:');
+  console.log('⚠️ ================================');
+  console.log(`⚠️ Raison: ${reason}`);
+  console.log(`⚠️ Promise: ${promise}`);
+  console.log('⚠️ ================================');
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('🛑 Arrêt du serveur...');
+  console.log('\n🛑 ================================');
+  console.log('🛑 ARRÊT DU SERVEUR EN COURS...');
+  console.log('🛑 ================================');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('\n🛑 ================================');
+  console.log('🛑 INTERRUPTION DÉTECTÉE (Ctrl+C)');
+  console.log('🛑 ARRÊT DU SERVEUR EN COURS...');
+  console.log('🛑 ================================');
   process.exit(0);
 });
