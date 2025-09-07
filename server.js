@@ -29,73 +29,46 @@ const API_KEYS = {
   finhub: process.env.FINNHUB_KEY || 'demo'
 };
 
-// Fonctions d'analyse technique avancée avec protection contre les erreurs
+// Fonctions d'analyse technique avancée
 class TechnicalAnalyzer {
   static calculateATR(prices, period = 14) {
-    if (!prices || prices.length < 2) return 0.001; // Valeur par défaut
-    
-    const validPrices = prices.filter(p => p && typeof p.close === 'number' && !isNaN(p.close));
-    if (validPrices.length < 2) return 0.001;
+    if (prices.length < period + 1) return 0;
     
     let trueRanges = [];
-    for (let i = 1; i < validPrices.length; i++) {
-      const current = validPrices[i];
-      const previous = validPrices[i - 1];
+    for (let i = 1; i < prices.length; i++) {
+      const current = prices[i];
+      const previous = prices[i - 1];
       
-      const high = current.high || current.close;
-      const low = current.low || current.close;
-      const prevClose = previous.close;
-      
-      if (high > 0 && low > 0 && prevClose > 0) {
-        const tr = Math.max(
-          high - low,
-          Math.abs(high - prevClose),
-          Math.abs(low - prevClose)
-        );
-        if (!isNaN(tr) && isFinite(tr)) {
-          trueRanges.push(tr);
-        }
-      }
+      const tr = Math.max(
+        current.high - current.low,
+        Math.abs(current.high - previous.close),
+        Math.abs(current.low - previous.close)
+      );
+      trueRanges.push(tr);
     }
     
-    if (trueRanges.length === 0) return 0.001;
-    
-    const period_to_use = Math.min(period, trueRanges.length);
-    const recentTR = trueRanges.slice(-period_to_use);
-    
-    return recentTR.reduce((a, b) => a + b, 0) / recentTR.length;
+    return ss.mean(trueRanges.slice(-period));
   }
   
   static calculateRSI(prices, period = 14) {
-    if (!prices || prices.length < 2) return 50; // RSI neutre
-    
-    const validPrices = prices.filter(p => p && typeof p.close === 'number' && !isNaN(p.close));
-    if (validPrices.length < 2) return 50;
+    if (prices.length < period + 1) return 50;
     
     let gains = [];
     let losses = [];
     
-    for (let i = 1; i < validPrices.length; i++) {
-      const change = validPrices[i].close - validPrices[i - 1].close;
-      if (!isNaN(change) && isFinite(change)) {
-        if (change > 0) {
-          gains.push(change);
-          losses.push(0);
-        } else {
-          gains.push(0);
-          losses.push(Math.abs(change));
-        }
+    for (let i = 1; i < prices.length; i++) {
+      const change = prices[i].close - prices[i - 1].close;
+      if (change > 0) {
+        gains.push(change);
+        losses.push(0);
+      } else {
+        gains.push(0);
+        losses.push(Math.abs(change));
       }
     }
     
-    if (gains.length === 0 || losses.length === 0) return 50;
-    
-    const period_to_use = Math.min(period, gains.length);
-    const recentGains = gains.slice(-period_to_use);
-    const recentLosses = losses.slice(-period_to_use);
-    
-    const avgGain = recentGains.reduce((a, b) => a + b, 0) / recentGains.length;
-    const avgLoss = recentLosses.reduce((a, b) => a + b, 0) / recentLosses.length;
+    const avgGain = ss.mean(gains.slice(-period));
+    const avgLoss = ss.mean(losses.slice(-period));
     
     if (avgLoss === 0) return 100;
     const rs = avgGain / avgLoss;
@@ -103,32 +76,11 @@ class TechnicalAnalyzer {
   }
   
   static calculateBollingerBands(prices, period = 20, stdDev = 2) {
-    if (!prices || prices.length < period) {
-      const defaultPrice = prices && prices.length > 0 ? prices[prices.length - 1].close : 100;
-      return { 
-        upper: defaultPrice * 1.02, 
-        middle: defaultPrice, 
-        lower: defaultPrice * 0.98 
-      };
-    }
+    if (prices.length < period) return { upper: 0, middle: 0, lower: 0 };
     
-    const validPrices = prices.filter(p => p && typeof p.close === 'number' && !isNaN(p.close));
-    if (validPrices.length < period) {
-      const defaultPrice = validPrices.length > 0 ? validPrices[validPrices.length - 1].close : 100;
-      return { 
-        upper: defaultPrice * 1.02, 
-        middle: defaultPrice, 
-        lower: defaultPrice * 0.98 
-      };
-    }
-    
-    const closePrices = validPrices.slice(-period).map(p => p.close);
-    const sma = closePrices.reduce((a, b) => a + b, 0) / closePrices.length;
-    
-    // Calcul de l'écart type manuel pour éviter les erreurs
-    const squaredDiffs = closePrices.map(price => Math.pow(price - sma, 2));
-    const variance = squaredDiffs.reduce((a, b) => a + b, 0) / squaredDiffs.length;
-    const std = Math.sqrt(variance);
+    const closePrices = prices.slice(-period).map(p => p.close);
+    const sma = ss.mean(closePrices);
+    const std = ss.standardDeviation(closePrices);
     
     return {
       upper: sma + (std * stdDev),
@@ -138,16 +90,9 @@ class TechnicalAnalyzer {
   }
   
   static calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
-    if (!prices || prices.length < slowPeriod) {
-      return { macd: 0, signal: 0, histogram: 0 };
-    }
+    if (prices.length < slowPeriod) return { macd: 0, signal: 0, histogram: 0 };
     
-    const validPrices = prices.filter(p => p && typeof p.close === 'number' && !isNaN(p.close));
-    if (validPrices.length < slowPeriod) {
-      return { macd: 0, signal: 0, histogram: 0 };
-    }
-    
-    const closePrices = validPrices.map(p => p.close);
+    const closePrices = prices.map(p => p.close);
     
     // Calcul des EMA
     const fastEMA = this.calculateEMA(closePrices, fastPeriod);
@@ -155,8 +100,9 @@ class TechnicalAnalyzer {
     
     const macdLine = fastEMA - slowEMA;
     
-    // Signal line simplifié
-    const signalLine = macdLine * 0.9; // Approximation
+    // Signal line (EMA du MACD)
+    const macdHistory = [macdLine]; // Simplifié pour la démonstration
+    const signalLine = this.calculateEMA(macdHistory, signalPeriod);
     
     return {
       macd: macdLine,
@@ -166,29 +112,19 @@ class TechnicalAnalyzer {
   }
   
   static calculateEMA(prices, period) {
-    if (!prices || prices.length === 0) return 0;
-    
-    const validPrices = prices.filter(p => typeof p === 'number' && !isNaN(p) && isFinite(p));
-    if (validPrices.length === 0) return 0;
+    if (prices.length === 0) return 0;
     
     const k = 2 / (period + 1);
-    let ema = validPrices[0];
+    let ema = prices[0];
     
-    for (let i = 1; i < validPrices.length; i++) {
-      ema = (validPrices[i] * k) + (ema * (1 - k));
+    for (let i = 1; i < prices.length; i++) {
+      ema = (prices[i] * k) + (ema * (1 - k));
     }
     
     return ema;
   }
   
   static calculateFibonacciLevels(high, low) {
-    // Protection contre les valeurs invalides
-    if (!high || !low || isNaN(high) || isNaN(low) || high <= low) {
-      const defaultPrice = high || low || 100;
-      high = defaultPrice * 1.05;
-      low = defaultPrice * 0.95;
-    }
-    
     const range = high - low;
     return {
       '0%': high,
@@ -331,27 +267,15 @@ async function fetchBTCUSD() {
   }
 }
 
-// Mise à jour automatique des prix avec gestion des erreurs améliorée
+// Mise à jour automatique des prix
 async function updateAllPrices() {
-  console.log('📡 Mise à jour des prix en cours...');
-  
-  const updatePromises = [
-    fetchEURUSD().catch(err => console.log('EUR/USD: Mode simulation activé')),
-    fetchXAUUSD().catch(err => console.log('XAU/USD: Mode simulation activé')),
-    fetchBTCUSD().catch(err => console.log('BTC/USD: Mode simulation activé'))
-  ];
-  
-  await Promise.allSettled(updatePromises);
-  
-  // Affichage du statut des données
-  const status = {
-    'EUR/USD': priceCache['EUR/USD'].lastUpdate > Date.now() - 60000 ? '✅' : '🔄',
-    'XAU/USD': priceCache['XAU/USD'].lastUpdate > Date.now() - 60000 ? '✅' : '🔄',
-    'BTC/USD': priceCache['BTC/USD'].lastUpdate > Date.now() - 60000 ? '✅' : '🔄'
-  };
-  
-  console.log('📊 Statut des données:', status);
-  console.log('✅ Mise à jour terminée');
+  console.log('Mise à jour des prix en cours...');
+  await Promise.all([
+    fetchEURUSD(),
+    fetchXAUUSD(),
+    fetchBTCUSD()
+  ]);
+  console.log('Mise à jour terminée');
 }
 
 // Endpoints API
