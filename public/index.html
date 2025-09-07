@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Calculator - Analyse Mathématique Avancée</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #0f3460;
+            --text-primary: #e94560;
+            --text-secondary: #ffffff;
+            --text-muted: #a0a0a0;
+            --accent: #e94560;
+            --success: #00ff88;
+            --warning: #ffaa00;
+            --border: #2d2d42;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --text-primary: #2c3e50;
+            --text-secondary: #34495e;
+            --text-muted: #7f8c8d;
+            --accent: #e74c3c;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --border: #ecf0f1;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            line-height: 1.6;
+            transition: all 0.3s ease;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-card));
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: var(--accent);
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+
+        .card h2 {
+            color: var(--accent);
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.1);
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .btn {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #ff6b8a);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 2px solid var(--border);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .current-price {
+            background: linear-gradient(135deg, var(--success), #2ecc71);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .current-price h3 {
+            margin-bottom: 5px;
+            font-size: 1.2rem;
+        }
+
+        .current-price .price {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+
+        .method-result {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .method-result:hover {
+            border-color: var(--accent);
+        }
+
+        .method-result h4 {
+            color: var(--accent);
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .method-result .formula {
+            background: var(--bg-primary);
+            padding: 10px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            color: var(--text-muted);
+            border-left: 4px solid var(--accent);
+        }
+
+        .result-values {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .result-value {
+            text-align: center;
+            padding: 10px;
+            background: var(--bg-card);
+            border-radius: 8px;
+        }
+
+        .result-value .label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        .result-value .value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .forecasts {
+            margin-top: 30px;
+        }
+
+        .forecast-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .forecast-item .method {
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .forecast-item .price {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .chart-container {
+            height: 400px;
+            margin-top: 20px;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--border);
+            border-radius: 50%;
+            border-top-color: var(--accent);
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .position-size {
+            background: linear-gradient(135deg, var(--warning), #f1c40f);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .position-size h3 {
+            margin-bottom: 10px;
+            font-size: 1.3rem;
+        }
+
+        .position-size .size {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .mathematical-formulas {
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            border-left: 4px solid var(--accent);
+        }
+
+        .mathematical-formulas h4 {
+            color: var(--accent);
+            margin-bottom: 15px;
+        }
+
+        .mathematical-formulas .formula-item {
+            margin-bottom: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            background: var(--bg-primary);
+            padding: 8px;
+            border-radius: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .button-group {
+                grid-template-columns: 1fr;
+            }
+
+            .result-values {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+
+    <div class="container">
+        <div class="header">
+            <h1>Trading Calculator Pro</h1>
+            <p>Analyse mathématique avancée avec ATR, GBM, AR(1), Fourier et plus encore</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Panel de configuration -->
+            <div class="card">
+                <h2>📊 Configuration de Trading</h2>
+                
+                <div class="input-group">
+                    <label for="symbol">Symbole</label>
+                    <select id="symbol">
+                        <option value="EURUSD">EUR/USD</option>
+                        <option value="XAUUSD">XAU/USD (Gold)</option>
+                        <option value="BTCUSD">BTC/USD</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label for="balance">Balance du compte ($)</label>
+                    <input type="number" id="balance" value="10000" min="100" step="100">
+                </div>
+
+                <div class="input-group">
+                    <label for="risk">Risque par trade (%)</label>
+                    <input type="number" id="risk" value="2" min="0.1" max="10" step="0.1">
+                </div>
+
+                <div class="input-group">
+                    <label for="entry">Prix d'entrée</label>
+                    <input type="number" id="entry" value="1.0850" step="0.00001">
+                </div>
+
+                <div class="input-group">
+                    <label for="stopLossPips">Stop Loss (pips)</label>
+                    <input type="number" id="stopLossPips" value="50" min="1" step="1">
+                </div>
+
+                <div class="input-group">
+                    <label for="horizonHours">Horizon de prévision (heures)</label>
+                    <input type="number" id="horizonHours" value="24" min="1" max="720" step="1">
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="updatePrice()">📈 Prix Actuel</button>
+                    <button class="btn btn-primary" onclick="calculate()">🧮 Calculer</button>
+                </div>
+
+                <div id="currentPrice" class="current-price" style="display: none;">
+                    <h3 id="priceSymbol">EUR/USD</h3>
+                    <div class="price" id="priceValue">1.0850</div>
+                    <small id="priceTime">Dernière mise à jour</small>
+                </div>
+
+                <div class="mathematical-formulas">
+                    <h4>🔬 Formules Mathématiques</h4>
+                    <div class="formula-item">GBM: P(t) = P₀ × exp((μ - σ²/2)×t + σ×√t×Z)</div>
+                    <div class="formula-item">ATR: (1/n) × Σ max[H-L, |H-Cprev|, |L-Cprev|]</div>
+                    <div class="formula-item">AR(1): X_t = φ×X_{t-1} + ε_t</div>
+                    <div class="formula-item">Fourier: Σ[aₖcos(2πkt/T) + bₖsin(2πkt/T)]</div>
+                </div>
+            </div>
+
+            <!-- Panel de résultats -->
+            <div class="card">
+                <h2>📈 Résultats & Analyse</h2>
+                
+                <div id="loading" class="loading" style="display: none;">
+                    Calcul en cours...
+                </div>
+
+                <div id="error" class="error" style="display: none;">
+                    Erreur lors du calcul
+                </div>
+
+                <div id="positionSizeResult" class="position-size" style="display: none;">
+                    <h3>Taille de Position</h3>
+                    <div class="size" id="positionSizeValue">0</div>
+                    <div>Risque: $<span id="riskAmountValue">0</span></div>
+                </div>
+
+                <div id="results" class="results" style="display: none;"></div>
+
+                <div id="forecasts" class="forecasts" style="display: none;">
+                    <h3>🔮 Prévisions Multi-Méthodes</h3>
+                    <div id="forecastsContainer"></div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let currentChart = null;
+        let currentData = null;
+
+        // Gestion du thème
+        function toggleTheme() {
+            const body = document.body;
+            const themeToggle = document.querySelector('.theme-toggle');
+            
+            if (body.hasAttribute('data-theme')) {
+                body.removeAttribute('data-theme');
+                themeToggle.textContent = '🌙';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                body.setAttribute('data-theme', 'light');
+                themeToggle.textContent = '☀️';
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Chargement du thème sauvegardé
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'light') {
+                document.body.setAttribute('data-theme', 'light');
+                document.querySelector('.theme-toggle').textContent = '☀️';
+            }
+            
+            // Mise à jour automatique du prix au chargement
+            updatePrice();
+        });
+
+        // Mise à jour du prix en temps réel
+        async function updatePrice() {
+            const symbol = document.getElementById('symbol').value;
+            
+            try {
+                showLoading(true);
+                const response = await fetch(`/api/price/${symbol}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentData = data;
+                    displayCurrentPrice(data);
+                    updateChart(data.historical);
+                    
+                    // Mise à jour automatique du prix d'entrée
+                    document.getElementById('entry').value = data.price;
+                } else {
+                    throw new Error(data.error || 'Erreur lors de la récupération du prix');
+                }
+            } catch (error) {
+                showError('Erreur lors de la récupération du prix: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Calculs de trading avancés
+        async function calculate() {
+            const formData = {
+                balance: parseFloat(document.getElementById('balance').value),
+                risk: parseFloat(document.getElementById('risk').value),
+                entry: parseFloat(document.getElementById('entry').value),
+                stopLossPips: parseFloat(document.getElementById('stopLossPips').value),
+                symbol: document.getElementById('symbol').value,
+                horizonHours: parseFloat(document.getElementById('horizonHours').value)
+            };
+
+            // Validation
+            if (!formData.balance || !formData.risk || !formData.entry || !formData.stopLossPips) {
+                showError('Veuillez remplir tous les champs obligatoires');
+                return;
+            }
+
+            try {
+                showLoading(true);
+                const response = await fetch('/api/calc', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayResults(data);
+                    displayForecasts(data.forecasts);
+                    displayPositionSize(data);
+                    updateChartWithForecasts(data);
+                } else {
+                    throw new Error(data.error || 'Erreur lors des calculs');
+                }
+            } catch (error) {
+                showError('Erreur lors des calculs: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Affichage du prix actuel
+        function displayCurrentPrice(data) {
+            const priceContainer = document.getElementById('currentPrice');
+            const symbolElement = document.getElementById('priceSymbol');
+            const valueElement = document.getElementById('priceValue');
+            const timeElement = document.getElementById('priceTime');
+
+            symbolElement.textContent = data.symbol;
+            valueElement.textContent = formatPrice(data.price, data.symbol);
+            timeElement.textContent = new Date(data.timestamp).toLocaleString('fr-FR');
+
+            priceContainer.style.display = 'block';
+        }
+
+        // Affichage des résultats
+        function displayResults(data) {
+            const resultsContainer = document.getElementById('results');
+            let html = '<h3>📊 Analyse Multi-Méthodes</h3>';
+
+            // Parcours de chaque méthode
+            Object.entries(data.methods).forEach(([key, method]) => {
+                html += `
+                    <div class="method-result">
+                        <h4>${method.name}</h4>
+                        <div class="formula">${method.formula}</div>
+                        <div class="result-values">
+                            <div class="result-value">
+                                <div class="label">Stop Loss</div>
+                                <div class="value">${formatPrice(method.stopLoss, data.symbol)}</div>
+                            </div>
+                            <div class="result-value">
+                                <div class="label">Take Profit</div>
+                                <div class="value">${formatPrice(method.takeProfit, data.symbol)}</div>
+                            </div>
+                            <div class="result-value">
+                                <div class="label">R:R</div>
+                                <div class="value">${method.riskReward || 'N/A'}</div>
+                            </div>
+                        </div>
+                `;
+
+                // Paramètres additionnels pour certaines méthodes
+                if (method.parameters) {
+                    html += '<div style="margin-top: 15px; font-size: 0.9rem; color: var(--text-muted);">';
+                    Object.entries(method.parameters).forEach(([param, value]) => {
+                        html += `<div><strong>${param}:</strong> ${value}</div>`;
+                    });
+                    html += '</div>';
+                }
+
+                html += '</div>';
+            });
+
+            resultsContainer.innerHTML = html;
+            resultsContainer.style.display = 'block';
+        }
+
+        // Affichage des prévisions
+        function displayForecasts(forecasts) {
+            const forecastsContainer = document.getElementById('forecastsContainer');
+            let html = '';
+
+            // GBM Forecast
+            if (forecasts.gbm_forecast) {
+                html += `
+                    <div class="forecast-item">
+                        <div>
+                            <div class="method">${forecasts.gbm_forecast.method}</div>
+                            <small style="color: var(--text-muted);">Intervalle: ${formatPrice(forecasts.gbm_forecast.confidence_interval[0])} - ${formatPrice(forecasts.gbm_forecast.confidence_interval[1])}</small>
+                        </div>
+                        <div class="price">${formatPrice(forecasts.gbm_forecast.price)}</div>
+                    </div>
+                `;
+            }
+
+            // AR(1) Forecast
+            if (forecasts.ar1_forecast) {
+                html += `
+                    <div class="forecast-item">
+                        <div>
+                            <div class="method">${forecasts.ar1_forecast.method}</div>
+                            <small style="color: var(--text-muted);">φ = ${forecasts.ar1_forecast.phi_coefficient}, Confiance: ${Math.round(forecasts.ar1_forecast.confidence * 100)}%</small>
+                        </div>
+                        <div class="price">${formatPrice(forecasts.ar1_forecast.price)}</div>
+                    </div>
+                `;
+            }
+
+            // Seasonal Forecast
+            if (forecasts.seasonal_forecast) {
+                html += `
+                    <div class="forecast-item">
+                        <div>
+                            <div class="method">${forecasts.seasonal_forecast.method}</div>
+                            <small style="color: var(--text-muted);">Amplitude: ${formatPrice(forecasts.seasonal_forecast.amplitude)}</small>
+                        </div>
+                        <div class="price">${formatPrice(forecasts.seasonal_forecast.price)}</div>
+                    </div>
+                `;
+            }
+
+            // Ensemble Forecast
+            html += `
+                <div class="forecast-item" style="border: 2px solid var(--accent); background: var(--bg-card);">
+                    <div>
+                        <div class="method">🎯 Prévision Ensemble</div>
+                        <small style="color: var(--text-muted);">Moyenne des 3 méthodes - Horizon: ${forecasts.horizon_hours}h</small>
+                    </div>
+                    <div class="price">${formatPrice(forecasts.ensemble)}</div>
+                </div>
+            `;
+
+            forecastsContainer.innerHTML = html;
+            document.getElementById('forecasts').style.display = 'block';
+        }
+
+        // Affichage de la taille de position
+        function displayPositionSize(data) {
+            document.getElementById('positionSizeValue').textContent = data.positionSize.toLocaleString();
+            document.getElementById('riskAmountValue').textContent = data.riskAmount.toFixed(2);
+            document.getElementById('positionSizeResult').style.display = 'block';
+        }
+
+        // Mise à jour du graphique
+        function updateChart(historicalData) {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            const labels = historicalData.map(d => new Date(d.date).toLocaleDateString('fr-FR'));
+            const prices = historicalData.map(d => d.price);
+
+            currentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Prix Historique',
+                        data: prices,
+                        borderColor: 'rgb(233, 69, 96)',
+                        backgroundColor: 'rgba(233, 69, 96, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Analyse des Prix & Prévisions'
+                        },
+                        legend: {
+                            display: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Mise à jour du graphique avec les prévisions
+        function updateChartWithForecasts(data) {
+            if (!currentChart || !currentData) return;
+
+            const forecasts = data.forecasts;
+            const currentPrice = parseFloat(document.getElementById('entry').value);
+            
+            // Ajout des points de prévision
+            const forecastLabels = ['Maintenant', `+${forecasts.horizon_hours}h`];
+            const forecastPrices = [currentPrice, forecasts.ensemble];
+            
+            // Mise à jour des données du graphique
+            currentChart.data.datasets.push({
+                label: 'Prévision Ensemble',
+                data: [null, ...Array(currentChart.data.labels.length - 2).fill(null), forecasts.ensemble],
+                borderColor: 'rgb(0, 255, 136)',
+                backgroundColor: 'rgba(0, 255, 136, 0.2)',
+                borderWidth: 3,
+                borderDash: [5, 5],
+                pointRadius: 6,
+                pointBackgroundColor: 'rgb(0, 255, 136)'
+            });
+
+            // Zone de confiance GBM
+            if (forecasts.gbm_forecast && forecasts.gbm_forecast.confidence_interval) {
+                const [lower, upper] = forecasts.gbm_forecast.confidence_interval;
+                
+                currentChart.data.datasets.push({
+                    label: 'Zone de Confiance 95%',
+                    data: [null, ...Array(currentChart.data.labels.length - 2).fill(null), upper],
+                    borderColor: 'rgba(255, 170, 0, 0.5)',
+                    backgroundColor: 'rgba(255, 170, 0, 0.1)',
+                    borderWidth: 1,
+                    fill: '+1'
+                }, {
+                    label: 'Zone de Confiance 95% (bas)',
+                    data: [null, ...Array(currentChart.data.labels.length - 2).fill(null), lower],
+                    borderColor: 'rgba(255, 170, 0, 0.5)',
+                    backgroundColor: 'rgba(255, 170, 0, 0.1)',
+                    borderWidth: 1,
+                    fill: false
+                });
+            }
+
+            currentChart.update();
+        }
+
+        // Utilitaires
+        function formatPrice(price, symbol = '') {
+            if (symbol === 'BTCUSD') {
+                return ' + price.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            } else if (symbol === 'XAUUSD') {
+                return ' + price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            return price.toLocaleString('fr-FR', { minimumFractionDigits: 5, maximumFractionDigits: 5 });
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Mise à jour automatique du prix toutes les 30 secondes
+        setInterval(updatePrice, 30000);
+
+        // Mise à jour automatique lors du changement de symbole
+        document.getElementById('symbol').addEventListener('change', updatePrice);
+    </script>
+</body>
+</html>
