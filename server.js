@@ -23,7 +23,7 @@ let priceCache = {
 // Clés API gratuites (remplacer par vos vraies clés)
 const API_KEYS = {
   ALPHA_VANTAGE: 'E4XCMP01EGN3VVP0', // Remplacer par votre clé
-  TWELVE_DATA: 'demo'    // Remplacer par votre clé
+  TWELVE_DATA: '5ccd04ee86d74c468738a110b9a1cd45'    // Remplacer par votre clé
 };
 
 // Fonctions utilitaires pour les calculs financiers
